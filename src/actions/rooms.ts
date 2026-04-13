@@ -73,8 +73,7 @@ export async function addRoom(formData: FormData): Promise<void> {
     })
     .onConflictDoNothing();
 
-  revalidatePath(`/${parsed.moveId}/inventory`);
-  revalidatePath(`/${parsed.moveId}/dashboard`);
+  revalidatePath(`/${parsed.moveId}`, "layout");
 }
 
 export async function renameRoom(formData: FormData): Promise<void> {
@@ -91,7 +90,7 @@ export async function renameRoom(formData: FormData): Promise<void> {
     .set({ label: parsed.label, updatedAt: new Date() })
     .where(eq(rooms.id, parsed.roomId));
 
-  revalidatePath(`/${moveId}/inventory`);
+  revalidatePath(`/${moveId}`, "layout");
 }
 
 export async function deleteRoom(formData: FormData): Promise<void> {
@@ -112,6 +111,5 @@ export async function deleteRoom(formData: FormData): Promise<void> {
   // at the schema level, so they're preserved (just without a room pointer).
   await db.delete(rooms).where(eq(rooms.id, parsed.roomId));
 
-  revalidatePath(`/${moveId}/inventory`);
-  revalidatePath(`/${moveId}/dashboard`);
+  revalidatePath(`/${moveId}`, "layout");
 }

@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
-import { Download, Loader2 } from "lucide-react";
+import { useEffect, useMemo, useState, useTransition } from "react";
+import { Download, Loader2, Share2 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -27,7 +27,18 @@ const SIZE_LABEL: Record<string, string> = {
   tote: "Tote",
 };
 
-async function fetchAndDownload(url: string, fallbackName: string) {
+function triggerBlobDownload(blob: Blob, name: string) {
+  const objectUrl = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = objectUrl;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(objectUrl), 0);
+}
+
+async function fetchBlob(url: string, fallbackName: string) {
   const res = await fetch(url, { credentials: "include" });
   if (!res.ok) {
     const body = await res.text().catch(() => "");
@@ -39,14 +50,56 @@ async function fetchAndDownload(url: string, fallbackName: string) {
   const disposition = res.headers.get("Content-Disposition") ?? "";
   const match = disposition.match(/filename="([^"]+)"/);
   const name = match?.[1] ?? fallbackName;
-  const objectUrl = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = objectUrl;
-  a.download = name;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(objectUrl), 0);
+  const type =
+    blob.type || res.headers.get("Content-Type") || "application/octet-stream";
+  return { blob, name, type };
+}
+
+async function fetchAndDownload(url: string, fallbackName: string) {
+  const { blob, name } = await fetchBlob(url, fallbackName);
+  triggerBlobDownload(blob, name);
+}
+
+/**
+ * Fetches an image PNG and, on mobile, offers it via the Web Share API so the
+ * user can tap "Save to Photos" (iOS) or "Save to Gallery" (Android) directly.
+ * Falls back to a file download on desktop or unsupported browsers.
+ */
+async function fetchAndSaveImage(
+  url: string,
+  fallbackName: string,
+  title: string,
+) {
+  const { blob, name, type } = await fetchBlob(url, fallbackName);
+
+  if (typeof navigator !== "undefined" && typeof navigator.canShare === "function") {
+    try {
+      const file = new File([blob], name, { type });
+      if (navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title });
+        return;
+      }
+    } catch (err) {
+      // User cancelled the share sheet — don't force a download.
+      if (err instanceof Error && err.name === "AbortError") return;
+      // Other share failures (security, unavailable, etc.) — fall through.
+    }
+  }
+
+  triggerBlobDownload(blob, name);
+}
+
+function supportsImageShare(): boolean {
+  if (typeof navigator === "undefined") return false;
+  if (typeof navigator.canShare !== "function") return false;
+  try {
+    const probe = new File([new Blob(["x"], { type: "image/png" })], "probe.png", {
+      type: "image/png",
+    });
+    return navigator.canShare({ files: [probe] });
+  } catch {
+    return false;
+  }
 }
 
 export function LabelsDownloader({
@@ -61,6 +114,11 @@ export function LabelsDownloader({
   const [selected, setSelected] = useState<Set<string>>(initialSelected);
   const [isPending, startTransition] = useTransition();
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [canShareImages, setCanShareImages] = useState(false);
+
+  useEffect(() => {
+    setCanShareImages(supportsImageShare());
+  }, []);
 
   const selectedCount = selected.size;
   const allSelected = labels.length > 0 && selected.size === labels.length;
@@ -97,11 +155,15 @@ export function LabelsDownloader({
     });
   }
 
-  function downloadOne(label: LabelPreview) {
+  function saveOne(label: LabelPreview) {
     setDownloadingId(label.id);
-    fetchAndDownload(`/api/labels/${label.id}`, `pakt-${label.shortCode}.png`)
+    fetchAndSaveImage(
+      `/api/labels/${label.id}`,
+      `pakt-${label.shortCode}.png`,
+      `pakt label ${label.shortCode}`,
+    )
       .catch((err) => {
-        toast.error(err instanceof Error ? err.message : "Download failed");
+        toast.error(err instanceof Error ? err.message : "Save failed");
       })
       .finally(() => setDownloadingId(null));
   }
@@ -204,16 +266,18 @@ export function LabelsDownloader({
                 <div className="pt-2">
                   <button
                     type="button"
-                    onClick={() => downloadOne(label)}
+                    onClick={() => saveOne(label)}
                     disabled={downloadingId === label.id}
                     className="inline-flex items-center gap-1 text-xs font-medium text-primary underline-offset-2 hover:underline disabled:opacity-50"
                   >
                     {downloadingId === label.id ? (
                       <Loader2 className="size-3.5 animate-spin" />
+                    ) : canShareImages ? (
+                      <Share2 className="size-3.5" />
                     ) : (
                       <Download className="size-3.5" />
                     )}
-                    Download PNG
+                    {canShareImages ? "Save to Photos" : "Download PNG"}
                   </button>
                 </div>
               </div>
