@@ -32,12 +32,16 @@ export async function createMove(formData: FormData): Promise<void> {
     plannedMoveDate: parsed.data.plannedMoveDate || null,
   });
 
-  await db.insert(rooms).values(
-    DEFAULT_ROOMS.flatMap((label, idx) => [
-      { id: generateId("rm"), moveId, kind: "origin" as const, label, sortOrder: idx * 10 },
-      { id: generateId("rm"), moveId, kind: "destination" as const, label, sortOrder: idx * 10 },
-    ]),
+  const seeds = DEFAULT_ROOMS.flatMap((room, idx) =>
+    room.sides.map((kind) => ({
+      id: generateId("rm"),
+      moveId,
+      kind,
+      label: room.label,
+      sortOrder: idx * 10,
+    })),
   );
+  await db.insert(rooms).values(seeds);
 
   revalidatePath("/moves");
   redirect(`/${moveId}/dashboard`);

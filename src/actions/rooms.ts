@@ -36,10 +36,25 @@ export async function addRoom(formData: FormData): Promise<void> {
     moveId: formData.get("moveId"),
     kind: formData.get("kind") ?? "origin",
     label: formData.get("label"),
+    parentRoomId: formData.get("parentRoomId") ?? "",
   });
   await assertMoveOwnership(parsed.moveId, userId);
 
   const db = getDb();
+
+  // If a parent is specified, verify it belongs to this move and is the same kind.
+  if (parsed.parentRoomId) {
+    const [parent] = await db
+      .select({ id: rooms.id, kind: rooms.kind })
+      .from(rooms)
+      .where(and(eq(rooms.id, parsed.parentRoomId), eq(rooms.moveId, parsed.moveId)))
+      .limit(1);
+    if (!parent) throw new Error("Parent room not found");
+    if (parent.kind !== parsed.kind) {
+      throw new Error("Parent room must be on the same side (origin/destination)");
+    }
+  }
+
   const [{ maxSort } = { maxSort: 0 }] = await db
     .select({ maxSort: rooms.sortOrder })
     .from(rooms)
@@ -53,6 +68,7 @@ export async function addRoom(formData: FormData): Promise<void> {
       moveId: parsed.moveId,
       kind: parsed.kind,
       label: parsed.label,
+      parentRoomId: parsed.parentRoomId ?? null,
       sortOrder: (maxSort ?? 0) + 10,
     })
     .onConflictDoNothing();
@@ -84,6 +100,16 @@ export async function deleteRoom(formData: FormData): Promise<void> {
   const moveId = await assertRoomOwnership(parsed.roomId, userId);
 
   const db = getDb();
+
+  // Promote any child rooms (closets) to top-level before deleting the parent
+  // so they don't end up with a dangling parent reference.
+  await db
+    .update(rooms)
+    .set({ parentRoomId: null, updatedAt: new Date() })
+    .where(eq(rooms.parentRoomId, parsed.roomId));
+
+  // Items with this room as source/destination have ON DELETE SET NULL
+  // at the schema level, so they're preserved (just without a room pointer).
   await db.delete(rooms).where(eq(rooms.id, parsed.roomId));
 
   revalidatePath(`/${moveId}/inventory`);

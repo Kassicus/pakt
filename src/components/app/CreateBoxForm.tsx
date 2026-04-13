@@ -51,7 +51,11 @@ export function CreateBoxForm({
 
       <div className="space-y-2">
         <Label>Box size</Label>
-        <Select value={size} onValueChange={(v) => setSize(v ?? "medium")}>
+        <Select
+          value={size}
+          onValueChange={(v) => setSize(v ?? "medium")}
+          items={SIZE_LABELS}
+        >
           <SelectTrigger>
             <SelectValue />
           </SelectTrigger>
@@ -68,7 +72,11 @@ export function CreateBoxForm({
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-2">
           <Label>Packing in room</Label>
-          <Select value={sourceRoomId} onValueChange={(v) => setSourceRoomId(v ?? "")}>
+          <Select
+            value={sourceRoomId}
+            onValueChange={(v) => setSourceRoomId(v ?? "")}
+            items={Object.fromEntries(originRooms.map((r) => [r.id, r.label]))}
+          >
             <SelectTrigger>
               <SelectValue placeholder="Optional" />
             </SelectTrigger>
@@ -86,6 +94,7 @@ export function CreateBoxForm({
           <Select
             value={destinationRoomId}
             onValueChange={(v) => setDestinationRoomId(v ?? "")}
+            items={Object.fromEntries(destinationRooms.map((r) => [r.id, r.label]))}
           >
             <SelectTrigger>
               <SelectValue placeholder="Pick a destination room" />

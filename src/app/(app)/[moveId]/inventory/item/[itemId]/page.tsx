@@ -5,6 +5,7 @@ import { ChevronLeft } from "lucide-react";
 import { requireUserId } from "@/lib/auth";
 import { getDb } from "@/db";
 import { itemCategories, itemPhotos, items, rooms } from "@/db/schema";
+import { pickerRoomsFor } from "@/lib/rooms";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DispositionChips } from "@/components/app/DispositionChips";
 import {
@@ -64,10 +65,14 @@ export default async function ItemDetailPage({
       .from(itemCategories)
       .orderBy(asc(itemCategories.sortOrder), asc(itemCategories.label)),
     db
-      .select({ id: rooms.id, label: rooms.label, kind: rooms.kind })
+      .select({
+        id: rooms.id,
+        label: rooms.label,
+        kind: rooms.kind,
+        parentRoomId: rooms.parentRoomId,
+      })
       .from(rooms)
-      .where(eq(rooms.moveId, moveId))
-      .orderBy(asc(rooms.sortOrder), asc(rooms.label)),
+      .where(eq(rooms.moveId, moveId)),
     db
       .select({ id: itemPhotos.id, url: itemPhotos.blobUrl })
       .from(itemPhotos)
@@ -81,12 +86,8 @@ export default async function ItemDetailPage({
     volumeCuFt: c.volumeCuFt !== null ? Number(c.volumeCuFt) : null,
     weightLbs: c.weightLbs !== null ? Number(c.weightLbs) : null,
   }));
-  const originRooms: RoomOption[] = roomRows
-    .filter((r) => r.kind === "origin")
-    .map(({ id, label }) => ({ id, label }));
-  const destinationRooms: RoomOption[] = roomRows
-    .filter((r) => r.kind === "destination")
-    .map(({ id, label }) => ({ id, label }));
+  const originRooms: RoomOption[] = pickerRoomsFor("origin", roomRows);
+  const destinationRooms: RoomOption[] = pickerRoomsFor("destination", roomRows);
   const photos: ExistingPhoto[] = photoRows.map(({ id, url }) => ({ id, url }));
 
   const initial: EditItemInitial = {

@@ -1,12 +1,20 @@
 import { z } from "zod";
 
-const DEFAULT_ROOMS = [
-  "Kitchen",
-  "Living room",
-  "Primary bedroom",
-  "Bathroom",
-  "Office",
-  "Storage / closet",
+type RoomSide = "origin" | "destination";
+
+type DefaultRoom = {
+  label: string;
+  sides: RoomSide[];
+};
+
+const DEFAULT_ROOMS: DefaultRoom[] = [
+  { label: "Kitchen", sides: ["origin", "destination"] },
+  { label: "Living room", sides: ["origin", "destination"] },
+  { label: "Primary bedroom", sides: ["origin", "destination"] },
+  { label: "Bathroom", sides: ["origin", "destination"] },
+  { label: "Office", sides: ["origin", "destination"] },
+  // Offsite storage unit — only a destination concept.
+  { label: "Storage", sides: ["destination"] },
 ];
 
 export const createMoveSchema = z.object({
@@ -24,10 +32,16 @@ export type CreateMoveInput = z.infer<typeof createMoveSchema>;
 export const roomKinds = ["origin", "destination"] as const;
 export const roomKindSchema = z.enum(roomKinds);
 
+const emptyStringToUndefined = z.preprocess(
+  (v) => (v === "" || v == null ? undefined : v),
+  z.string().min(1).optional(),
+);
+
 export const addRoomSchema = z.object({
   moveId: z.string().min(1),
   kind: roomKindSchema.default("origin"),
   label: z.string().trim().min(1, "Room name is required").max(80),
+  parentRoomId: emptyStringToUndefined,
 });
 
 export const renameRoomSchema = z.object({

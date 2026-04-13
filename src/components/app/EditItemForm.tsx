@@ -105,7 +105,11 @@ export function EditItemForm({
       <div className="grid gap-3 md:grid-cols-[1fr_auto]">
         <div className="space-y-1.5">
           <Label htmlFor="categoryId">Category</Label>
-          <Select value={categoryId} onValueChange={(v) => setCategoryId(v ?? "")}>
+          <Select
+            value={categoryId}
+            onValueChange={(v) => setCategoryId(v ?? "")}
+            items={Object.fromEntries(categories.map((c) => [c.id, c.label]))}
+          >
             <SelectTrigger id="categoryId">
               <SelectValue />
             </SelectTrigger>
@@ -135,7 +139,11 @@ export function EditItemForm({
       <div className="grid gap-3 md:grid-cols-2">
         <div className="space-y-1.5">
           <Label>Source room</Label>
-          <Select value={sourceRoomId} onValueChange={(v) => setSourceRoomId(v ?? "")}>
+          <Select
+            value={sourceRoomId}
+            onValueChange={(v) => setSourceRoomId(v ?? "")}
+            items={Object.fromEntries(originRooms.map((r) => [r.id, r.label]))}
+          >
             <SelectTrigger>
               <SelectValue placeholder="—" />
             </SelectTrigger>
@@ -153,6 +161,7 @@ export function EditItemForm({
           <Select
             value={destinationRoomId}
             onValueChange={(v) => setDestinationRoomId(v ?? "")}
+            items={Object.fromEntries(destinationRooms.map((r) => [r.id, r.label]))}
           >
             <SelectTrigger>
               <SelectValue placeholder="—" />
@@ -175,6 +184,11 @@ export function EditItemForm({
           onValueChange={(v) => {
             if (v === "normal" || v === "fragile" || v === "very_fragile")
               setFragility(v);
+          }}
+          items={{
+            normal: "Normal",
+            fragile: "Fragile",
+            very_fragile: "Very fragile",
           }}
         >
           <SelectTrigger>

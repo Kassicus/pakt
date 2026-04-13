@@ -35,9 +35,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
     )
     .limit(1);
 
-  if (!row) {
-    return new Response("Not found", { status: 404 });
-  }
+  if (!row) return new Response("Not found", { status: 404 });
 
   const roomRows = await db
     .select({ id: rooms.id, label: rooms.label })
@@ -58,13 +56,18 @@ export async function GET(_request: Request, { params }: RouteContext) {
       : null,
   };
 
-  const buf = await renderLabelPngBuffer(box);
-
-  return new Response(new Uint8Array(buf), {
-    headers: {
-      "Content-Type": "image/png",
-      "Content-Disposition": `attachment; filename="${labelFilename(row.shortCode)}"`,
-      "Cache-Control": "private, max-age=3600",
-    },
-  });
+  try {
+    const buf = await renderLabelPngBuffer(box);
+    return new Response(new Uint8Array(buf), {
+      headers: {
+        "Content-Type": "image/png",
+        "Content-Disposition": `attachment; filename="${labelFilename(row.shortCode)}"`,
+        "Cache-Control": "private, max-age=3600",
+        "Content-Length": String(buf.length),
+      },
+    });
+  } catch (err) {
+    console.error("[labels] render failed", { boxId, err });
+    return new Response("Label render failed", { status: 500 });
+  }
 }

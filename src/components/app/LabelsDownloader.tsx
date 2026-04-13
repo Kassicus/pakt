@@ -27,6 +27,28 @@ const SIZE_LABEL: Record<string, string> = {
   tote: "Tote",
 };
 
+async function fetchAndDownload(url: string, fallbackName: string) {
+  const res = await fetch(url, { credentials: "include" });
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(
+      `${res.status} ${res.statusText}${body ? `: ${body.slice(0, 200)}` : ""}`,
+    );
+  }
+  const blob = await res.blob();
+  const disposition = res.headers.get("Content-Disposition") ?? "";
+  const match = disposition.match(/filename="([^"]+)"/);
+  const name = match?.[1] ?? fallbackName;
+  const objectUrl = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = objectUrl;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(objectUrl), 0);
+}
+
 export function LabelsDownloader({
   moveId,
   labels,
@@ -38,6 +60,7 @@ export function LabelsDownloader({
 }) {
   const [selected, setSelected] = useState<Set<string>>(initialSelected);
   const [isPending, startTransition] = useTransition();
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   const selectedCount = selected.size;
   const allSelected = labels.length > 0 && selected.size === labels.length;
@@ -67,23 +90,20 @@ export function LabelsDownloader({
     if (labels.length === 0) return;
     startTransition(async () => {
       try {
-        const res = await fetch(zipHref);
-        if (!res.ok) throw new Error(`ZIP failed: ${res.status}`);
-        const blob = await res.blob();
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        const disposition = res.headers.get("Content-Disposition") ?? "";
-        const match = disposition.match(/filename="([^"]+)"/);
-        a.download = match?.[1] ?? "pakt-labels.zip";
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        URL.revokeObjectURL(url);
+        await fetchAndDownload(zipHref, "pakt-labels.zip");
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "ZIP download failed");
       }
     });
+  }
+
+  function downloadOne(label: LabelPreview) {
+    setDownloadingId(label.id);
+    fetchAndDownload(`/api/labels/${label.id}`, `pakt-${label.shortCode}.png`)
+      .catch((err) => {
+        toast.error(err instanceof Error ? err.message : "Download failed");
+      })
+      .finally(() => setDownloadingId(null));
   }
 
   if (labels.length === 0) {
@@ -182,13 +202,19 @@ export function LabelsDownloader({
                   </div>
                 </div>
                 <div className="pt-2">
-                  <a
-                    href={`/api/labels/${label.id}`}
-                    className="inline-flex items-center gap-1 text-xs font-medium text-primary underline-offset-2 hover:underline"
-                    download
+                  <button
+                    type="button"
+                    onClick={() => downloadOne(label)}
+                    disabled={downloadingId === label.id}
+                    className="inline-flex items-center gap-1 text-xs font-medium text-primary underline-offset-2 hover:underline disabled:opacity-50"
                   >
-                    <Download className="size-3.5" /> Download PNG
-                  </a>
+                    {downloadingId === label.id ? (
+                      <Loader2 className="size-3.5 animate-spin" />
+                    ) : (
+                      <Download className="size-3.5" />
+                    )}
+                    Download PNG
+                  </button>
                 </div>
               </div>
             </li>

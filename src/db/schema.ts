@@ -93,6 +93,7 @@ export const rooms = pgTable(
       .references(() => moves.id, { onDelete: "cascade" }),
     kind: roomKindEnum("kind").notNull(),
     label: text("label").notNull(),
+    parentRoomId: text("parent_room_id"),
     sortOrder: integer("sort_order").notNull().default(0),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
@@ -100,6 +101,7 @@ export const rooms = pgTable(
   (t) => [
     unique("rooms_unique_label").on(t.moveId, t.kind, t.label),
     index("rooms_move_idx").on(t.moveId, t.kind),
+    index("rooms_parent_idx").on(t.parentRoomId),
   ],
 );
 

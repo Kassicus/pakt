@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { and, asc, eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
+import { pickerRoomsFor } from "@/lib/rooms";
 import { ChevronLeft } from "lucide-react";
 import { requireUserId } from "@/lib/auth";
 import { getDb } from "@/db";
@@ -25,13 +26,17 @@ export default async function NewBoxPage({
   if (!move) notFound();
 
   const allRooms = await db
-    .select({ id: rooms.id, label: rooms.label, kind: rooms.kind })
+    .select({
+      id: rooms.id,
+      label: rooms.label,
+      kind: rooms.kind,
+      parentRoomId: rooms.parentRoomId,
+    })
     .from(rooms)
-    .where(eq(rooms.moveId, moveId))
-    .orderBy(asc(rooms.sortOrder), asc(rooms.label));
+    .where(eq(rooms.moveId, moveId));
 
-  const originRooms = allRooms.filter((r) => r.kind === "origin");
-  const destinationRooms = allRooms.filter((r) => r.kind === "destination");
+  const originRooms = pickerRoomsFor("origin", allRooms);
+  const destinationRooms = pickerRoomsFor("destination", allRooms);
 
   return (
     <div className="mx-auto max-w-xl space-y-6">

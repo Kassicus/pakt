@@ -117,7 +117,11 @@ export function AddItemForm({
           <Label htmlFor="categoryId" className="text-xs">
             Category
           </Label>
-          <Select value={categoryId} onValueChange={(v) => setCategoryId(v ?? "")}>
+          <Select
+            value={categoryId}
+            onValueChange={(v) => setCategoryId(v ?? "")}
+            items={Object.fromEntries(categories.map((c) => [c.id, c.label]))}
+          >
             <SelectTrigger id="categoryId" className="min-w-40">
               <SelectValue placeholder="Category" />
             </SelectTrigger>
