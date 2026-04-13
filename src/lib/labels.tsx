@@ -5,7 +5,7 @@ export const LABEL_WIDTH = 472;
 export const LABEL_HEIGHT = 354;
 const QR_SIZE = 290;
 const PAD = 12;
-const FRAGILE_BAR_HEIGHT = 40;
+const FRAGILE_BAR_HEIGHT = 48;
 
 export type LabelBox = {
   shortCode: string;
@@ -115,7 +115,8 @@ function renderLabelJsx(box: LabelBox, qrDataUrl: string) {
         </div>
       ) : null}
 
-      {/* Fragile stripe — thicker font for thermal print legibility */}
+      {/* Fragile stripe — textShadow stroke fattens the glyphs so thermal
+          printers don't print splotchy thin strokes. */}
       {box.fragile ? (
         <div
           style={{
@@ -128,10 +129,12 @@ function renderLabelJsx(box: LabelBox, qrDataUrl: string) {
             justifyContent: "center",
             background: "#000",
             color: "#fff",
-            fontSize: 26,
+            fontSize: 32,
             fontWeight: 900,
-            letterSpacing: "0.3em",
+            letterSpacing: "0.22em",
             height: FRAGILE_BAR_HEIGHT,
+            textShadow:
+              "-1px 0 0 #fff, 1px 0 0 #fff, 0 -1px 0 #fff, 0 1px 0 #fff, -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 1px 1px 0 #fff",
           }}
         >
           FRAGILE

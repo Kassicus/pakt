@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { requireUserId } from "@/lib/auth";
 import { getDb } from "@/db";
 import { moves, rooms } from "@/db/schema";
@@ -55,23 +55,31 @@ export async function addRoom(formData: FormData): Promise<void> {
     }
   }
 
-  const [{ maxSort } = { maxSort: 0 }] = await db
+  const [top] = await db
     .select({ maxSort: rooms.sortOrder })
     .from(rooms)
     .where(and(eq(rooms.moveId, parsed.moveId), eq(rooms.kind, parsed.kind)))
-    .orderBy(rooms.sortOrder);
+    .orderBy(desc(rooms.sortOrder))
+    .limit(1);
 
-  await db
-    .insert(rooms)
-    .values({
+  try {
+    await db.insert(rooms).values({
       id: generateId("rm"),
       moveId: parsed.moveId,
       kind: parsed.kind,
       label: parsed.label,
       parentRoomId: parsed.parentRoomId ?? null,
-      sortOrder: (maxSort ?? 0) + 10,
-    })
-    .onConflictDoNothing();
+      sortOrder: (top?.maxSort ?? 0) + 10,
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes("rooms_unique_label") || msg.includes("duplicate key")) {
+      throw new Error(
+        `A room named "${parsed.label}" already exists here. Pick a different name.`,
+      );
+    }
+    throw err;
+  }
 
   revalidatePath(`/${parsed.moveId}`, "layout");
 }

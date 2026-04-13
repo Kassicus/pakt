@@ -1,19 +1,27 @@
 import Link from "next/link";
 import { and, asc, count, eq, isNull } from "drizzle-orm";
-import { ChevronRight, CornerDownRight, PackageOpen } from "lucide-react";
+import { ChevronRight, CornerDownRight, MapPin, PackageOpen } from "lucide-react";
 import { requireUserId } from "@/lib/auth";
 import { getDb } from "@/db";
 import { rooms, items, moves } from "@/db/schema";
 import { AddRoomForm, type ParentOption } from "@/components/app/AddRoomForm";
 import { RoomActionsMenu } from "@/components/app/RoomActionsMenu";
 import { Card, CardContent } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
+
+type Side = "origin" | "destination";
 
 export default async function InventoryOverviewPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ moveId: string }>;
+  searchParams: Promise<{ side?: string }>;
 }) {
   const { moveId } = await params;
+  const { side: rawSide } = await searchParams;
+  const side: Side = rawSide === "destination" ? "destination" : "origin";
+
   const userId = await requireUserId();
   const db = getDb();
 
@@ -24,7 +32,7 @@ export default async function InventoryOverviewPage({
     .limit(1);
   if (!ownMove) return null;
 
-  const originRooms = await db
+  const roomsForSide = await db
     .select({
       id: rooms.id,
       label: rooms.label,
@@ -32,26 +40,33 @@ export default async function InventoryOverviewPage({
       sortOrder: rooms.sortOrder,
     })
     .from(rooms)
-    .where(and(eq(rooms.moveId, moveId), eq(rooms.kind, "origin")))
+    .where(and(eq(rooms.moveId, moveId), eq(rooms.kind, side)))
     .orderBy(asc(rooms.sortOrder), asc(rooms.label));
 
-  const countsRows = await db
-    .select({ sourceRoomId: items.sourceRoomId, n: count() })
-    .from(items)
-    .where(and(eq(items.moveId, moveId), isNull(items.deletedAt)))
-    .groupBy(items.sourceRoomId);
-
+  // Item counts per room, by side
   const counts = new Map<string, number>();
-  for (const r of countsRows) {
-    if (r.sourceRoomId) counts.set(r.sourceRoomId, Number(r.n));
+  if (side === "origin") {
+    const rows = await db
+      .select({ roomId: items.sourceRoomId, n: count() })
+      .from(items)
+      .where(and(eq(items.moveId, moveId), isNull(items.deletedAt)))
+      .groupBy(items.sourceRoomId);
+    for (const r of rows) if (r.roomId) counts.set(r.roomId, Number(r.n));
+  } else {
+    const rows = await db
+      .select({ roomId: items.destinationRoomId, n: count() })
+      .from(items)
+      .where(and(eq(items.moveId, moveId), isNull(items.deletedAt)))
+      .groupBy(items.destinationRoomId);
+    for (const r of rows) if (r.roomId) counts.set(r.roomId, Number(r.n));
   }
 
-  const existingIds = new Set(originRooms.map((r) => r.id));
-  const topLevel = originRooms.filter(
+  const existingIds = new Set(roomsForSide.map((r) => r.id));
+  const topLevel = roomsForSide.filter(
     (r) => !r.parentRoomId || !existingIds.has(r.parentRoomId),
   );
-  const childrenByParent = new Map<string, typeof originRooms>();
-  for (const room of originRooms) {
+  const childrenByParent = new Map<string, typeof roomsForSide>();
+  for (const room of roomsForSide) {
     if (room.parentRoomId && existingIds.has(room.parentRoomId)) {
       const bucket = childrenByParent.get(room.parentRoomId) ?? [];
       bucket.push(room);
@@ -64,20 +79,53 @@ export default async function InventoryOverviewPage({
     label: r.label,
   }));
 
+  const isOrigin = side === "origin";
+  const RoomIcon = isOrigin ? PackageOpen : MapPin;
+  const emptyLabel = isOrigin
+    ? "No items yet"
+    : "Nothing routed here yet";
+  const subtitle = isOrigin
+    ? "Walk room by room. Tap a room to add items. Sub-spaces (closets, cabinets) can be added inside a room."
+    : "Where your things are headed at the new place. Use these when creating boxes or editing items.";
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-semibold tracking-tight">Inventory</h1>
-        <p className="mt-1 text-muted-foreground">
-          Walk room by room. Tap a room to add items. Closets, cabinets, and
-          other sub-spaces can be added inside a room.
-        </p>
+        <p className="mt-1 text-muted-foreground">{subtitle}</p>
       </div>
 
-      {originRooms.length === 0 ? (
+      <div className="inline-flex rounded-lg border bg-card p-0.5 text-sm">
+        <Link
+          href={`/${moveId}/inventory?side=origin`}
+          className={cn(
+            "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 transition-colors",
+            isOrigin
+              ? "bg-primary text-primary-foreground"
+              : "text-muted-foreground hover:text-foreground",
+          )}
+          scroll={false}
+        >
+          <PackageOpen className="size-4" /> Origin rooms
+        </Link>
+        <Link
+          href={`/${moveId}/inventory?side=destination`}
+          className={cn(
+            "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 transition-colors",
+            !isOrigin
+              ? "bg-primary text-primary-foreground"
+              : "text-muted-foreground hover:text-foreground",
+          )}
+          scroll={false}
+        >
+          <MapPin className="size-4" /> Destination rooms
+        </Link>
+      </div>
+
+      {roomsForSide.length === 0 ? (
         <Card>
           <CardContent className="py-10 text-center text-muted-foreground">
-            No rooms yet. Add one below.
+            No {isOrigin ? "origin" : "destination"} rooms yet. Add one below.
           </CardContent>
         </Card>
       ) : (
@@ -87,60 +135,28 @@ export default async function InventoryOverviewPage({
             const n = counts.get(room.id) ?? 0;
             return (
               <li key={room.id} className="space-y-1">
-                <div className="group flex items-stretch gap-1 rounded-lg border bg-card transition-colors hover:bg-accent/30">
-                  <Link
-                    href={`/${moveId}/inventory/${room.id}`}
-                    className="flex flex-1 items-center gap-3 p-4"
-                  >
-                    <div className="flex size-10 items-center justify-center rounded-md bg-muted text-muted-foreground">
-                      <PackageOpen className="size-5" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="truncate font-medium">{room.label}</div>
-                      <div className="text-xs text-muted-foreground">
-                        {n === 0 ? "No items yet" : `${n} item${n === 1 ? "" : "s"}`}
-                      </div>
-                    </div>
-                    <ChevronRight className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
-                  </Link>
-                  <div className="flex items-center pr-2">
-                    <RoomActionsMenu
-                      roomId={room.id}
-                      roomLabel={room.label}
-                      itemCount={n}
-                    />
-                  </div>
-                </div>
+                <RoomRow
+                  moveId={moveId}
+                  side={side}
+                  room={room}
+                  count={n}
+                  emptyLabel={emptyLabel}
+                  Icon={RoomIcon}
+                />
                 {children.length > 0 && (
                   <ul className="ml-6 space-y-1 border-l pl-4">
                     {children.map((child) => {
                       const childCount = counts.get(child.id) ?? 0;
                       return (
                         <li key={child.id}>
-                          <div className="group flex items-stretch gap-1 rounded-md border bg-card/60 transition-colors hover:bg-accent/30">
-                            <Link
-                              href={`/${moveId}/inventory/${child.id}`}
-                              className="flex flex-1 items-center gap-2.5 px-3 py-2.5 text-sm"
-                            >
-                              <CornerDownRight className="size-4 text-muted-foreground" />
-                              <div className="flex-1 min-w-0">
-                                <div className="truncate">{child.label}</div>
-                                <div className="text-xs text-muted-foreground">
-                                  {childCount === 0
-                                    ? "No items yet"
-                                    : `${childCount} item${childCount === 1 ? "" : "s"}`}
-                                </div>
-                              </div>
-                              <ChevronRight className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
-                            </Link>
-                            <div className="flex items-center pr-1.5">
-                              <RoomActionsMenu
-                                roomId={child.id}
-                                roomLabel={child.label}
-                                itemCount={childCount}
-                              />
-                            </div>
-                          </div>
+                          <RoomRow
+                            moveId={moveId}
+                            side={side}
+                            room={child}
+                            count={childCount}
+                            emptyLabel={emptyLabel}
+                            nested
+                          />
                         </li>
                       );
                     })}
@@ -152,7 +168,94 @@ export default async function InventoryOverviewPage({
         </ul>
       )}
 
-      <AddRoomForm moveId={moveId} parentOptions={parentOptions} />
+      <AddRoomForm
+        moveId={moveId}
+        kind={side}
+        parentOptions={parentOptions}
+      />
+    </div>
+  );
+}
+
+function RoomRow({
+  moveId,
+  side,
+  room,
+  count,
+  emptyLabel,
+  Icon,
+  nested,
+}: {
+  moveId: string;
+  side: Side;
+  room: { id: string; label: string };
+  count: number;
+  emptyLabel: string;
+  Icon?: React.ComponentType<{ className?: string }>;
+  nested?: boolean;
+}) {
+  const isLinkable = side === "origin";
+  const RowIcon = Icon ?? PackageOpen;
+
+  const content = (
+    <>
+      {nested ? (
+        <CornerDownRight className="size-4 text-muted-foreground" />
+      ) : (
+        <div className="flex size-10 items-center justify-center rounded-md bg-muted text-muted-foreground">
+          <RowIcon className="size-5" />
+        </div>
+      )}
+      <div className="flex-1 min-w-0">
+        <div className={cn("truncate", nested ? "text-sm" : "font-medium")}>
+          {room.label}
+        </div>
+        <div className="text-xs text-muted-foreground">
+          {count === 0 ? emptyLabel : `${count} item${count === 1 ? "" : "s"}`}
+        </div>
+      </div>
+      {isLinkable ? (
+        <ChevronRight className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+      ) : null}
+    </>
+  );
+
+  return (
+    <div
+      className={cn(
+        "group flex items-stretch gap-1 transition-colors",
+        nested
+          ? "rounded-md border bg-card/60 hover:bg-accent/30"
+          : "rounded-lg border bg-card hover:bg-accent/30",
+      )}
+    >
+      {isLinkable ? (
+        <Link
+          href={`/${moveId}/inventory/${room.id}`}
+          className={cn(
+            "flex flex-1 items-center gap-3",
+            nested ? "px-3 py-2.5 text-sm" : "p-4",
+          )}
+        >
+          {content}
+        </Link>
+      ) : (
+        <div
+          className={cn(
+            "flex flex-1 items-center gap-3",
+            nested ? "px-3 py-2.5 text-sm" : "p-4",
+          )}
+        >
+          {content}
+        </div>
+      )}
+      <div className={cn("flex items-center", nested ? "pr-1.5" : "pr-2")}>
+        <RoomActionsMenu
+          roomId={room.id}
+          roomLabel={room.label}
+          itemCount={count}
+        />
+      </div>
     </div>
   );
 }

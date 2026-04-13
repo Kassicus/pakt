@@ -24,9 +24,11 @@ const NO_PARENT = "__none__";
 
 export function AddRoomForm({
   moveId,
+  kind,
   parentOptions = [],
 }: {
   moveId: string;
+  kind: "origin" | "destination";
   parentOptions?: ParentOption[];
 }) {
   const [isPending, startTransition] = useTransition();
@@ -38,7 +40,7 @@ export function AddRoomForm({
     if (!label.trim()) return;
     const fd = new FormData();
     fd.set("moveId", moveId);
-    fd.set("kind", "origin");
+    fd.set("kind", kind);
     fd.set("label", label.trim());
     fd.set("parentRoomId", parentId === NO_PARENT ? "" : parentId);
     startTransition(async () => {
