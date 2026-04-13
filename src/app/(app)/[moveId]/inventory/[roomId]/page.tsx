@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { and, asc, desc, eq, inArray, isNull } from "drizzle-orm";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, MapPin } from "lucide-react";
 import { requireUserId } from "@/lib/auth";
 import { getDb } from "@/db";
 import { itemCategories, itemPhotos, items, moves, rooms } from "@/db/schema";
@@ -25,6 +25,8 @@ export default async function RoomDetailPage({
     .select({
       id: rooms.id,
       label: rooms.label,
+      kind: rooms.kind,
+      parentRoomId: rooms.parentRoomId,
       moveId: rooms.moveId,
     })
     .from(rooms)
@@ -40,36 +42,64 @@ export default async function RoomDetailPage({
 
   if (!room) notFound();
 
-  const [categoryRows, itemRows] = await Promise.all([
-    db
-      .select({
-        id: itemCategories.id,
-        label: itemCategories.label,
-        fragile: itemCategories.fragile,
-        sortOrder: itemCategories.sortOrder,
-      })
-      .from(itemCategories)
-      .orderBy(asc(itemCategories.sortOrder), asc(itemCategories.label)),
-    db
-      .select({
-        id: items.id,
-        name: items.name,
-        quantity: items.quantity,
-        disposition: items.disposition,
-        notes: items.notes,
-        categoryLabel: itemCategories.label,
-      })
-      .from(items)
-      .leftJoin(itemCategories, eq(itemCategories.id, items.categoryId))
-      .where(
-        and(
-          eq(items.moveId, moveId),
-          eq(items.sourceRoomId, roomId),
-          isNull(items.deletedAt),
-        ),
-      )
-      .orderBy(desc(items.createdAt)),
-  ]);
+  const isOrigin = room.kind === "origin";
+  const backHref = `/${moveId}/inventory?side=${room.kind}`;
+
+  // Optional: parent room name for breadcrumb
+  let parentLabel: string | null = null;
+  if (room.parentRoomId) {
+    const [parent] = await db
+      .select({ label: rooms.label })
+      .from(rooms)
+      .where(eq(rooms.id, room.parentRoomId))
+      .limit(1);
+    parentLabel = parent?.label ?? null;
+  }
+
+  // Fetch items — filter by source OR destination based on room kind
+  const itemRows = isOrigin
+    ? await db
+        .select({
+          id: items.id,
+          name: items.name,
+          quantity: items.quantity,
+          disposition: items.disposition,
+          notes: items.notes,
+          categoryLabel: itemCategories.label,
+          sourceRoomLabel: rooms.label,
+        })
+        .from(items)
+        .leftJoin(itemCategories, eq(itemCategories.id, items.categoryId))
+        .leftJoin(rooms, eq(rooms.id, items.sourceRoomId))
+        .where(
+          and(
+            eq(items.moveId, moveId),
+            eq(items.sourceRoomId, roomId),
+            isNull(items.deletedAt),
+          ),
+        )
+        .orderBy(desc(items.createdAt))
+    : await db
+        .select({
+          id: items.id,
+          name: items.name,
+          quantity: items.quantity,
+          disposition: items.disposition,
+          notes: items.notes,
+          categoryLabel: itemCategories.label,
+          sourceRoomLabel: rooms.label,
+        })
+        .from(items)
+        .leftJoin(itemCategories, eq(itemCategories.id, items.categoryId))
+        .leftJoin(rooms, eq(rooms.id, items.sourceRoomId))
+        .where(
+          and(
+            eq(items.moveId, moveId),
+            eq(items.destinationRoomId, roomId),
+            isNull(items.deletedAt),
+          ),
+        )
+        .orderBy(desc(items.createdAt));
 
   const firstPhotoByItem = new Map<string, { url: string }>();
   if (itemRows.length > 0) {
@@ -94,6 +124,19 @@ export default async function RoomDetailPage({
     }
   }
 
+  // Categories — only needed for the origin add-item form
+  const categoryRows = isOrigin
+    ? await db
+        .select({
+          id: itemCategories.id,
+          label: itemCategories.label,
+          fragile: itemCategories.fragile,
+          sortOrder: itemCategories.sortOrder,
+        })
+        .from(itemCategories)
+        .orderBy(asc(itemCategories.sortOrder), asc(itemCategories.label))
+    : [];
+
   const categories: CategoryOption[] = categoryRows.map((c) => ({
     id: c.id,
     label: c.label,
@@ -103,25 +146,37 @@ export default async function RoomDetailPage({
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-3">
-        <div>
+        <div className="min-w-0">
           <Link
-            href={`/${moveId}/inventory`}
+            href={backHref}
             className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
           >
-            <ChevronLeft className="size-4" /> All rooms
+            <ChevronLeft className="size-4" /> All {isOrigin ? "origin" : "destination"} rooms
           </Link>
-          <h1 className="mt-1 text-3xl font-semibold tracking-tight">{room.label}</h1>
+          <h1 className="mt-1 flex items-center gap-2 text-3xl font-semibold tracking-tight">
+            {!isOrigin && <MapPin className="size-6 text-muted-foreground" />}
+            <span className="truncate">{room.label}</span>
+          </h1>
+          {parentLabel && (
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              inside {parentLabel}
+            </p>
+          )}
         </div>
         <Badge variant="secondary" className="tabular-nums">
           {itemRows.length} item{itemRows.length === 1 ? "" : "s"}
         </Badge>
       </div>
 
-      <AddItemForm moveId={moveId} sourceRoomId={roomId} categories={categories} />
+      {isOrigin && (
+        <AddItemForm moveId={moveId} sourceRoomId={roomId} categories={categories} />
+      )}
 
       {itemRows.length === 0 ? (
         <div className="rounded-lg border border-dashed py-12 text-center text-muted-foreground">
-          Add your first item above. Disposition chips will show up here.
+          {isOrigin
+            ? "Add your first item above. Disposition chips will show up here."
+            : "Nothing is routed here yet. Items gain this destination when you edit them or assign them to a box heading here."}
         </div>
       ) : (
         <ul className="divide-y rounded-lg border bg-card">
@@ -150,6 +205,12 @@ export default async function RoomDetailPage({
                   </div>
                   <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                     {item.categoryLabel && <span>{item.categoryLabel}</span>}
+                    {!isOrigin && item.sourceRoomLabel && (
+                      <>
+                        <span>·</span>
+                        <span>from {item.sourceRoomLabel}</span>
+                      </>
+                    )}
                     {item.notes && <span className="truncate">— {item.notes}</span>}
                   </div>
                 </div>

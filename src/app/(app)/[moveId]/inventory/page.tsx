@@ -6,6 +6,7 @@ import { getDb } from "@/db";
 import { rooms, items, moves } from "@/db/schema";
 import { AddRoomForm, type ParentOption } from "@/components/app/AddRoomForm";
 import { RoomActionsMenu } from "@/components/app/RoomActionsMenu";
+import { MirrorRoomsButton } from "@/components/app/MirrorRoomsButton";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
@@ -86,7 +87,7 @@ export default async function InventoryOverviewPage({
     : "Nothing routed here yet";
   const subtitle = isOrigin
     ? "Walk room by room. Tap a room to add items. Sub-spaces (closets, cabinets) can be added inside a room."
-    : "Where your things are headed at the new place. Use these when creating boxes or editing items.";
+    : "Where your things are headed at the new place. Use these when creating boxes or editing items. Tap a room to see what's routed there.";
 
   return (
     <div className="space-y-6">
@@ -95,31 +96,39 @@ export default async function InventoryOverviewPage({
         <p className="mt-1 text-muted-foreground">{subtitle}</p>
       </div>
 
-      <div className="inline-flex rounded-lg border bg-card p-0.5 text-sm">
-        <Link
-          href={`/${moveId}/inventory?side=origin`}
-          className={cn(
-            "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 transition-colors",
-            isOrigin
-              ? "bg-primary text-primary-foreground"
-              : "text-muted-foreground hover:text-foreground",
-          )}
-          scroll={false}
-        >
-          <PackageOpen className="size-4" /> Origin rooms
-        </Link>
-        <Link
-          href={`/${moveId}/inventory?side=destination`}
-          className={cn(
-            "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 transition-colors",
-            !isOrigin
-              ? "bg-primary text-primary-foreground"
-              : "text-muted-foreground hover:text-foreground",
-          )}
-          scroll={false}
-        >
-          <MapPin className="size-4" /> Destination rooms
-        </Link>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="inline-flex rounded-lg border bg-card p-0.5 text-sm">
+          <Link
+            href={`/${moveId}/inventory?side=origin`}
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 transition-colors",
+              isOrigin
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+            scroll={false}
+          >
+            <PackageOpen className="size-4" /> Origin rooms
+          </Link>
+          <Link
+            href={`/${moveId}/inventory?side=destination`}
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 transition-colors",
+              !isOrigin
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+            scroll={false}
+          >
+            <MapPin className="size-4" /> Destination rooms
+          </Link>
+        </div>
+        {!isOrigin && (
+          <MirrorRoomsButton
+            moveId={moveId}
+            existingDestinationCount={roomsForSide.length}
+          />
+        )}
       </div>
 
       {roomsForSide.length === 0 ? (
@@ -179,7 +188,6 @@ export default async function InventoryOverviewPage({
 
 function RoomRow({
   moveId,
-  side,
   room,
   count,
   emptyLabel,
@@ -194,31 +202,7 @@ function RoomRow({
   Icon?: React.ComponentType<{ className?: string }>;
   nested?: boolean;
 }) {
-  const isLinkable = side === "origin";
   const RowIcon = Icon ?? PackageOpen;
-
-  const content = (
-    <>
-      {nested ? (
-        <CornerDownRight className="size-4 text-muted-foreground" />
-      ) : (
-        <div className="flex size-10 items-center justify-center rounded-md bg-muted text-muted-foreground">
-          <RowIcon className="size-5" />
-        </div>
-      )}
-      <div className="flex-1 min-w-0">
-        <div className={cn("truncate", nested ? "text-sm" : "font-medium")}>
-          {room.label}
-        </div>
-        <div className="text-xs text-muted-foreground">
-          {count === 0 ? emptyLabel : `${count} item${count === 1 ? "" : "s"}`}
-        </div>
-      </div>
-      {isLinkable ? (
-        <ChevronRight className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
-      ) : null}
-    </>
-  );
 
   return (
     <div
@@ -229,26 +213,30 @@ function RoomRow({
           : "rounded-lg border bg-card hover:bg-accent/30",
       )}
     >
-      {isLinkable ? (
-        <Link
-          href={`/${moveId}/inventory/${room.id}`}
-          className={cn(
-            "flex flex-1 items-center gap-3",
-            nested ? "px-3 py-2.5 text-sm" : "p-4",
-          )}
-        >
-          {content}
-        </Link>
-      ) : (
-        <div
-          className={cn(
-            "flex flex-1 items-center gap-3",
-            nested ? "px-3 py-2.5 text-sm" : "p-4",
-          )}
-        >
-          {content}
+      <Link
+        href={`/${moveId}/inventory/${room.id}`}
+        className={cn(
+          "flex flex-1 items-center gap-3",
+          nested ? "px-3 py-2.5 text-sm" : "p-4",
+        )}
+      >
+        {nested ? (
+          <CornerDownRight className="size-4 text-muted-foreground" />
+        ) : (
+          <div className="flex size-10 items-center justify-center rounded-md bg-muted text-muted-foreground">
+            <RowIcon className="size-5" />
+          </div>
+        )}
+        <div className="flex-1 min-w-0">
+          <div className={cn("truncate", nested ? "text-sm" : "font-medium")}>
+            {room.label}
+          </div>
+          <div className="text-xs text-muted-foreground">
+            {count === 0 ? emptyLabel : `${count} item${count === 1 ? "" : "s"}`}
+          </div>
         </div>
-      )}
+        <ChevronRight className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+      </Link>
       <div className={cn("flex items-center", nested ? "pr-1.5" : "pr-2")}>
         <RoomActionsMenu
           roomId={room.id}

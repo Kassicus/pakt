@@ -1,16 +1,17 @@
 "use client";
 
 import { useTransition } from "react";
-import { MoreVertical, Trash2, Loader2 } from "lucide-react";
+import { MoreVertical, Pencil, Trash2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { deleteRoom } from "@/actions/rooms";
+import { deleteRoom, renameRoom } from "@/actions/rooms";
 
 export function RoomActionsMenu({
   roomId,
@@ -22,6 +23,25 @@ export function RoomActionsMenu({
   itemCount: number;
 }) {
   const [isPending, startTransition] = useTransition();
+
+  function onRename() {
+    const next = prompt(`Rename "${roomLabel}" to:`, roomLabel);
+    if (next === null) return;
+    const trimmed = next.trim();
+    if (!trimmed || trimmed === roomLabel) return;
+
+    const fd = new FormData();
+    fd.set("roomId", roomId);
+    fd.set("label", trimmed);
+    startTransition(async () => {
+      try {
+        await renameRoom(fd);
+        toast.success(`Renamed to "${trimmed}"`);
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Couldn't rename room");
+      }
+    });
+  }
 
   function onDelete() {
     const warning =
@@ -58,6 +78,13 @@ export function RoomActionsMenu({
         )}
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-40">
+        <DropdownMenuGroup>
+          <DropdownMenuItem onClick={onRename} disabled={isPending}>
+            <Pencil className="mr-2 size-4" />
+            Rename
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
+        <DropdownMenuSeparator />
         <DropdownMenuGroup>
           <DropdownMenuItem
             variant="destructive"

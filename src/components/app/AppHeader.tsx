@@ -27,9 +27,9 @@ export function AppHeader({ session, move }: Props) {
           <>
             <span className="shrink-0 text-muted-foreground">·</span>
             <Link
-              href="/moves"
+              href={`/${move.id}/dashboard`}
               className="min-w-0 flex-initial truncate text-sm font-medium text-muted-foreground hover:text-foreground"
-              title={move.name}
+              title={`${move.name} — dashboard`}
             >
               {move.name}
             </Link>

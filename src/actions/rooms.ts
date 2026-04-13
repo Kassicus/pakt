@@ -101,6 +101,99 @@ export async function renameRoom(formData: FormData): Promise<void> {
   revalidatePath(`/${moveId}`, "layout");
 }
 
+export async function mirrorOriginToDestination(
+  moveId: string,
+): Promise<{ added: number; skipped: number }> {
+  const userId = await requireUserId();
+  await assertMoveOwnership(moveId, userId);
+
+  const db = getDb();
+  const originRooms = await db
+    .select({
+      id: rooms.id,
+      label: rooms.label,
+      parentRoomId: rooms.parentRoomId,
+      sortOrder: rooms.sortOrder,
+    })
+    .from(rooms)
+    .where(and(eq(rooms.moveId, moveId), eq(rooms.kind, "origin")))
+    .orderBy(rooms.sortOrder);
+
+  if (originRooms.length === 0) {
+    return { added: 0, skipped: 0 };
+  }
+
+  // Existing destination top-level labels — skip to avoid duplicate-key errors.
+  const existingDest = await db
+    .select({ label: rooms.label, parentRoomId: rooms.parentRoomId })
+    .from(rooms)
+    .where(and(eq(rooms.moveId, moveId), eq(rooms.kind, "destination")));
+  const existingTopLabels = new Set(
+    existingDest
+      .filter((r) => !r.parentRoomId)
+      .map((r) => r.label.toLowerCase()),
+  );
+
+  type Insert = {
+    id: string;
+    moveId: string;
+    kind: "destination";
+    label: string;
+    parentRoomId: string | null;
+    sortOrder: number;
+  };
+
+  const idMap = new Map<string, string>();
+  const topLevelInserts: Insert[] = [];
+  let skipped = 0;
+
+  for (const r of originRooms.filter((r) => !r.parentRoomId)) {
+    if (existingTopLabels.has(r.label.toLowerCase())) {
+      skipped += 1;
+      continue;
+    }
+    const newId = generateId("rm");
+    idMap.set(r.id, newId);
+    topLevelInserts.push({
+      id: newId,
+      moveId,
+      kind: "destination",
+      label: r.label,
+      parentRoomId: null,
+      sortOrder: r.sortOrder,
+    });
+  }
+  if (topLevelInserts.length > 0) {
+    await db.insert(rooms).values(topLevelInserts);
+  }
+
+  const subRoomInserts: Insert[] = [];
+  for (const r of originRooms.filter((r) => r.parentRoomId)) {
+    const newParentId = r.parentRoomId ? idMap.get(r.parentRoomId) : null;
+    if (!newParentId) {
+      skipped += 1;
+      continue;
+    }
+    subRoomInserts.push({
+      id: generateId("rm"),
+      moveId,
+      kind: "destination",
+      label: r.label,
+      parentRoomId: newParentId,
+      sortOrder: r.sortOrder,
+    });
+  }
+  if (subRoomInserts.length > 0) {
+    await db.insert(rooms).values(subRoomInserts);
+  }
+
+  revalidatePath(`/${moveId}`, "layout");
+  return {
+    added: topLevelInserts.length + subRoomInserts.length,
+    skipped,
+  };
+}
+
 export async function deleteRoom(formData: FormData): Promise<void> {
   const userId = await requireUserId();
   const parsed = deleteRoomSchema.parse({ roomId: formData.get("roomId") });

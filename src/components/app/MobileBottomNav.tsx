@@ -2,16 +2,16 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, PackageOpen, Shuffle, Box, ScanLine } from "lucide-react";
+import { PackageOpen, Shuffle, Box, ScanLine, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function MobileBottomNav({ moveId }: { moveId: string }) {
   const pathname = usePathname();
 
   const items = [
-    { href: `/${moveId}/dashboard`, label: "Home", icon: Home },
     { href: `/${moveId}/inventory`, label: "Inventory", icon: PackageOpen },
     { href: `/${moveId}/triage`, label: "Triage", icon: Shuffle },
+    { href: `/${moveId}/search`, label: "Search", icon: Search },
     { href: `/${moveId}/boxes`, label: "Boxes", icon: Box },
     { href: `/${moveId}/pack`, label: "Scan", icon: ScanLine },
   ];
@@ -52,6 +52,7 @@ export function DesktopTopNav({ moveId }: { moveId: string }) {
     { href: `/${moveId}/dashboard`, label: "Dashboard" },
     { href: `/${moveId}/inventory`, label: "Inventory" },
     { href: `/${moveId}/triage`, label: "Triage" },
+    { href: `/${moveId}/search`, label: "Search" },
     { href: `/${moveId}/boxes`, label: "Boxes" },
     { href: `/${moveId}/pack`, label: "Pack" },
     { href: `/${moveId}/labels`, label: "Labels" },
