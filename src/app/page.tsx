@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { auth } from "@clerk/nextjs/server";
 import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ArrowRight, Box, Camera, QrCode, Truck } from "lucide-react";
@@ -26,7 +27,10 @@ const features = [
   },
 ];
 
-export default function HomePage() {
+export default async function HomePage() {
+  const { userId } = await auth();
+  const isSignedIn = Boolean(userId);
+
   return (
     <main className="flex-1">
       <section className="mx-auto w-full max-w-5xl px-6 py-24 md:py-32">
@@ -41,12 +45,20 @@ export default function HomePage() {
           Inventory every item, decide what goes, label every box, and find anything in seconds at the other end.
         </p>
         <div className="mt-10 flex flex-wrap items-center gap-3">
-          <Link href="/sign-up" className={buttonVariants({ size: "lg" })}>
-            Start packing <ArrowRight className="ml-2 size-4" />
-          </Link>
-          <Link href="/sign-in" className={buttonVariants({ size: "lg", variant: "outline" })}>
-            Sign in
-          </Link>
+          {isSignedIn ? (
+            <Link href="/moves" className={buttonVariants({ size: "lg" })}>
+              Open pakt <ArrowRight className="ml-2 size-4" />
+            </Link>
+          ) : (
+            <>
+              <Link href="/sign-up" className={buttonVariants({ size: "lg" })}>
+                Start packing <ArrowRight className="ml-2 size-4" />
+              </Link>
+              <Link href="/sign-in" className={buttonVariants({ size: "lg", variant: "outline" })}>
+                Sign in
+              </Link>
+            </>
+          )}
         </div>
       </section>
 

@@ -1,8 +1,11 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { and, eq } from "drizzle-orm";
+import { UserButton } from "@clerk/nextjs";
 import { requireUserId } from "@/lib/auth";
 import { getDb } from "@/db";
 import { moves } from "@/db/schema";
+import { DesktopTopNav, MobileBottomNav } from "@/components/app/MobileBottomNav";
 
 export default async function MoveLayout({
   params,
@@ -16,12 +19,33 @@ export default async function MoveLayout({
   const db = getDb();
 
   const [move] = await db
-    .select({ id: moves.id })
+    .select({ id: moves.id, name: moves.name })
     .from(moves)
     .where(and(eq(moves.id, moveId), eq(moves.ownerClerkUserId, userId)))
     .limit(1);
 
   if (!move) notFound();
 
-  return <>{children}</>;
+  return (
+    <div className="flex min-h-svh flex-col">
+      <header className="sticky top-0 z-20 border-b bg-background/80 backdrop-blur">
+        <div className="mx-auto flex h-14 w-full max-w-5xl items-center gap-4 px-4">
+          <Link
+            href="/moves"
+            className="truncate text-sm font-medium text-muted-foreground hover:text-foreground"
+          >
+            ← {move.name}
+          </Link>
+          <div className="ml-auto flex items-center gap-4">
+            <DesktopTopNav moveId={moveId} />
+            <UserButton />
+          </div>
+        </div>
+      </header>
+      <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-6 pb-24 md:pb-6">
+        {children}
+      </main>
+      <MobileBottomNav moveId={moveId} />
+    </div>
+  );
 }
