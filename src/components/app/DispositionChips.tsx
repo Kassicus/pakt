@@ -1,9 +1,10 @@
 "use client";
 
-import { useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { CheckCircle2, Archive, Heart, Trash2, HelpCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { updateDisposition } from "@/actions/items";
+import { enqueue, isNetworkError } from "@/lib/offline";
 import { toast } from "sonner";
 import type { Disposition } from "@/lib/validators";
 
@@ -55,16 +56,42 @@ export function DispositionChips({
   value: Disposition;
 }) {
   const [isPending, startTransition] = useTransition();
+  const [optimistic, setOptimistic] = useState<Disposition | null>(null);
+
+  useEffect(() => {
+    if (optimistic && value === optimistic) setOptimistic(null);
+  }, [value, optimistic]);
+
+  const displayed = optimistic ?? value;
 
   function onSelect(next: Disposition) {
-    if (next === value || isPending) return;
-    const fd = new FormData();
-    fd.set("itemId", itemId);
-    fd.set("disposition", next);
+    if (next === displayed || isPending) return;
+    setOptimistic(next);
     startTransition(async () => {
+      const offline = typeof navigator !== "undefined" && !navigator.onLine;
+      if (offline) {
+        await enqueue({
+          kind: "updateDisposition",
+          payload: { itemId, disposition: next },
+        });
+        toast("Saved offline — will sync when online");
+        return;
+      }
+      const fd = new FormData();
+      fd.set("itemId", itemId);
+      fd.set("disposition", next);
       try {
         await updateDisposition(fd);
       } catch (err) {
+        if (isNetworkError(err)) {
+          await enqueue({
+            kind: "updateDisposition",
+            payload: { itemId, disposition: next },
+          });
+          toast("Saved offline — will sync when online");
+          return;
+        }
+        setOptimistic(null);
         toast.error(err instanceof Error ? err.message : "Update failed");
       }
     });
@@ -80,7 +107,7 @@ export function DispositionChips({
       aria-label="Disposition"
     >
       {OPTIONS.map((opt) => {
-        const active = opt.value === value;
+        const active = opt.value === displayed;
         const Icon = opt.icon;
         return (
           <button

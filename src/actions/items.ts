@@ -49,23 +49,27 @@ export async function addItem(formData: FormData): Promise<{ itemId: string }> {
     disposition: formData.get("disposition") ?? "undecided",
     fragility: formData.get("fragility") ?? "normal",
     notes: formData.get("notes") ?? "",
+    clientItemId: formData.get("clientItemId") ?? "",
   });
   await assertMoveOwnership(parsed.moveId, userId);
 
   const db = getDb();
-  const itemId = generateId("itm");
-  await db.insert(items).values({
-    id: itemId,
-    moveId: parsed.moveId,
-    ownerUserId: userId,
-    name: parsed.name,
-    categoryId: parsed.categoryId,
-    sourceRoomId: parsed.sourceRoomId,
-    quantity: parsed.quantity,
-    disposition: parsed.disposition,
-    fragility: parsed.fragility,
-    notes: parsed.notes || null,
-  });
+  const itemId = parsed.clientItemId ?? generateId("itm");
+  await db
+    .insert(items)
+    .values({
+      id: itemId,
+      moveId: parsed.moveId,
+      ownerUserId: userId,
+      name: parsed.name,
+      categoryId: parsed.categoryId,
+      sourceRoomId: parsed.sourceRoomId,
+      quantity: parsed.quantity,
+      disposition: parsed.disposition,
+      fragility: parsed.fragility,
+      notes: parsed.notes || null,
+    })
+    .onConflictDoNothing({ target: items.id });
 
   revalidatePath(`/${parsed.moveId}/inventory/${parsed.sourceRoomId}`);
   revalidatePath(`/${parsed.moveId}/inventory`);

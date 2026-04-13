@@ -13,6 +13,8 @@ const idBody = customAlphabet(
   10,
 );
 
-export function generateId(prefix: "mov" | "rm" | "itm" | "ph" | "box" | "bi"): string {
+export function generateId(
+  prefix: "mov" | "rm" | "itm" | "ph" | "box" | "bi" | "chk",
+): string {
   return `${prefix}_${idBody()}`;
 }

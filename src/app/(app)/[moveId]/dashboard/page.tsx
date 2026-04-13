@@ -13,6 +13,7 @@ import { moves, items, boxes, rooms, itemCategories } from "@/db/schema";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { ExportPdfButton } from "@/components/app/ExportPdfButton";
 import {
   BOX_VOLUME_CUFT,
   predictBoxCounts,
@@ -88,13 +89,16 @@ export default async function DashboardPage({
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-semibold tracking-tight">{move.name}</h1>
-        <p className="mt-1 text-muted-foreground">
-          {move.plannedMoveDate
-            ? `Planned for ${new Date(move.plannedMoveDate).toLocaleDateString()}`
-            : "No move date set yet"}
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-3xl font-semibold tracking-tight">{move.name}</h1>
+          <p className="mt-1 text-muted-foreground">
+            {move.plannedMoveDate
+              ? `Planned for ${new Date(move.plannedMoveDate).toLocaleDateString()}`
+              : "No move date set yet"}
+          </p>
+        </div>
+        <ExportPdfButton moveId={moveId} />
       </div>
 
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">

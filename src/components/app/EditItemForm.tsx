@@ -15,6 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { updateItem } from "@/actions/items";
+import { enqueue, isNetworkError } from "@/lib/offline";
 import { AdvancedOverrides } from "./AdvancedOverrides";
 
 export type RoomOption = { id: string; label: string };
@@ -66,24 +67,51 @@ export function EditItemForm({
 
   const selectedCategory = categories.find((c) => c.id === categoryId);
 
+  async function enqueueOffline() {
+    await enqueue({
+      kind: "updateItem",
+      payload: {
+        itemId: initial.itemId,
+        name: name.trim(),
+        categoryId,
+        quantity: Number(quantity) || 1,
+        fragility,
+        sourceRoomId,
+        destinationRoomId,
+        notes: notes.trim(),
+        volumeCuFtOverride: volumeOverride.trim(),
+        weightLbsOverride: weightOverride.trim(),
+      },
+    });
+    toast("Saved offline — will sync when online");
+  }
+
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const fd = new FormData();
-    fd.set("itemId", initial.itemId);
-    fd.set("name", name.trim());
-    fd.set("categoryId", categoryId);
-    fd.set("quantity", quantity);
-    fd.set("fragility", fragility);
-    fd.set("sourceRoomId", sourceRoomId);
-    fd.set("destinationRoomId", destinationRoomId);
-    fd.set("notes", notes.trim());
-    fd.set("volumeCuFtOverride", volumeOverride.trim());
-    fd.set("weightLbsOverride", weightOverride.trim());
     startTransition(async () => {
+      if (typeof navigator !== "undefined" && !navigator.onLine) {
+        await enqueueOffline();
+        return;
+      }
+      const fd = new FormData();
+      fd.set("itemId", initial.itemId);
+      fd.set("name", name.trim());
+      fd.set("categoryId", categoryId);
+      fd.set("quantity", quantity);
+      fd.set("fragility", fragility);
+      fd.set("sourceRoomId", sourceRoomId);
+      fd.set("destinationRoomId", destinationRoomId);
+      fd.set("notes", notes.trim());
+      fd.set("volumeCuFtOverride", volumeOverride.trim());
+      fd.set("weightLbsOverride", weightOverride.trim());
       try {
         await updateItem(fd);
         toast.success("Saved");
       } catch (err) {
+        if (isNetworkError(err)) {
+          await enqueueOffline();
+          return;
+        }
         toast.error(err instanceof Error ? err.message : "Couldn't save");
       }
     });

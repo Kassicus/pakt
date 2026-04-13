@@ -32,8 +32,10 @@ export type CreateMoveInput = z.infer<typeof createMoveSchema>;
 export const roomKinds = ["origin", "destination"] as const;
 export const roomKindSchema = z.enum(roomKinds);
 
+const emptyToUndefined = (v: unknown) => (v === "" || v == null ? undefined : v);
+
 const emptyStringToUndefined = z.preprocess(
-  (v) => (v === "" || v == null ? undefined : v),
+  emptyToUndefined,
   z.string().min(1).optional(),
 );
 
@@ -76,6 +78,13 @@ export const addItemSchema = z.object({
   disposition: dispositionSchema.default("undecided"),
   fragility: fragilitySchema.default("normal"),
   notes: z.string().trim().max(500).optional().or(z.literal("")),
+  clientItemId: z.preprocess(
+    emptyToUndefined,
+    z
+      .string()
+      .regex(/^itm_[A-Za-z0-9]{6,40}$/u, "Invalid client item id")
+      .optional(),
+  ),
 });
 export type AddItemInput = z.infer<typeof addItemSchema>;
 
@@ -91,8 +100,6 @@ export const deleteItemSchema = z.object({
 export const restoreItemSchema = z.object({
   itemId: z.string().min(1),
 });
-
-const emptyToUndefined = (v: unknown) => (v === "" || v == null ? undefined : v);
 
 export const updateItemSchema = z.object({
   itemId: z.string().min(1),
@@ -201,3 +208,30 @@ export const saveDecisionSchema = z.object({
 export type SaveDecisionInput = z.infer<typeof saveDecisionSchema>;
 
 export { DEFAULT_ROOMS };
+
+export const checklistCategories = ["30d", "2w", "week", "day", "after"] as const;
+export const checklistCategorySchema = z.enum(checklistCategories);
+export type ChecklistCategory = z.infer<typeof checklistCategorySchema>;
+
+export const addChecklistItemSchema = z.object({
+  moveId: z.string().min(1),
+  text: z.string().trim().min(1, "Task is required").max(200),
+  category: checklistCategorySchema,
+});
+
+export const toggleChecklistItemSchema = z.object({
+  itemId: z.string().min(1),
+  done: z
+    .union([z.literal("on"), z.literal("true"), z.literal("false"), z.literal("")])
+    .transform((v) => v === "on" || v === "true"),
+});
+
+export const updateChecklistItemSchema = z.object({
+  itemId: z.string().min(1),
+  text: z.string().trim().min(1).max(200).optional(),
+  category: checklistCategorySchema.optional(),
+});
+
+export const deleteChecklistItemSchema = z.object({
+  itemId: z.string().min(1),
+});

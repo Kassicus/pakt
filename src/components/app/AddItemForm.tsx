@@ -17,6 +17,8 @@ import {
 import { addItem } from "@/actions/items";
 import { attachPhoto } from "@/actions/photos";
 import { uploadPhotoFromFile } from "@/lib/blob";
+import { enqueue, isNetworkError } from "@/lib/offline";
+import { generateId } from "@/lib/shortcode";
 import { CameraCapture, type StagedPhoto } from "./CameraCapture";
 
 export type CategoryOption = {
@@ -42,21 +44,58 @@ export function AddItemForm({
   const [photos, setPhotos] = useState<StagedPhoto[]>([]);
   const nameRef = useRef<HTMLInputElement>(null);
 
+  function resetForm() {
+    setName("");
+    setQuantity("1");
+    setNotes("");
+    setPhotos([]);
+    nameRef.current?.focus();
+  }
+
+  async function enqueueOffline(stagedPhotos: StagedPhoto[]) {
+    await enqueue({
+      kind: "addItem",
+      payload: {
+        moveId,
+        sourceRoomId,
+        name: name.trim(),
+        categoryId,
+        quantity: Number(quantity) || 1,
+        disposition: "undecided",
+        fragility: "normal",
+        notes: notes.trim(),
+        clientItemId: generateId("itm"),
+      },
+    });
+    if (stagedPhotos.length > 0) {
+      toast("Saved offline — photos need a connection, edit later to add them");
+      for (const s of stagedPhotos) URL.revokeObjectURL(s.previewUrl);
+    } else {
+      toast("Saved offline — will sync when online");
+    }
+    resetForm();
+  }
+
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!name.trim()) return;
 
-    const fd = new FormData();
-    fd.set("moveId", moveId);
-    fd.set("sourceRoomId", sourceRoomId);
-    fd.set("name", name.trim());
-    fd.set("categoryId", categoryId);
-    fd.set("quantity", quantity);
-    fd.set("notes", notes.trim());
-
     const stagedPhotos = photos;
 
     startTransition(async () => {
+      if (typeof navigator !== "undefined" && !navigator.onLine) {
+        await enqueueOffline(stagedPhotos);
+        return;
+      }
+
+      const fd = new FormData();
+      fd.set("moveId", moveId);
+      fd.set("sourceRoomId", sourceRoomId);
+      fd.set("name", name.trim());
+      fd.set("categoryId", categoryId);
+      fd.set("quantity", quantity);
+      fd.set("notes", notes.trim());
+
       try {
         const { itemId } = await addItem(fd);
 
@@ -83,12 +122,12 @@ export function AddItemForm({
           }
         }
 
-        setName("");
-        setQuantity("1");
-        setNotes("");
-        setPhotos([]);
-        nameRef.current?.focus();
+        resetForm();
       } catch (err) {
+        if (isNetworkError(err)) {
+          await enqueueOffline(stagedPhotos);
+          return;
+        }
         toast.error(err instanceof Error ? err.message : "Couldn't add item");
       }
     });

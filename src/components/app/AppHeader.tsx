@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { UserMenu } from "./UserMenu";
 import { DesktopTopNav } from "./MobileBottomNav";
+import { PendingChangesBadge } from "./PendingChangesBadge";
 
 type Session = {
   email: string;
@@ -35,7 +36,8 @@ export function AppHeader({ session, move }: Props) {
             </Link>
           </>
         ) : null}
-        <div className="ml-auto flex shrink-0 items-center gap-4">
+        <div className="ml-auto flex shrink-0 items-center gap-3 sm:gap-4">
+          <PendingChangesBadge />
           {move ? <DesktopTopNav moveId={move.id} /> : null}
           <UserMenu
             email={session.email}

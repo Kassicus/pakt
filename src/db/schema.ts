@@ -68,6 +68,14 @@ export const boxStatusEnum = pgEnum("box_status", [
   "unpacked",
 ]);
 
+export const checklistCategoryEnum = pgEnum("checklist_category", [
+  "30d",
+  "2w",
+  "week",
+  "day",
+  "after",
+]);
+
 export const moves = pgTable(
   "moves",
   {
@@ -204,6 +212,25 @@ export const boxes = pgTable(
   (t) => [
     uniqueIndex("boxes_move_shortcode_idx").on(t.moveId, t.shortCode),
     index("boxes_move_status_idx").on(t.moveId, t.status, t.deletedAt),
+  ],
+);
+
+export const checklistItems = pgTable(
+  "checklist_items",
+  {
+    id: text("id").primaryKey(),
+    moveId: text("move_id")
+      .notNull()
+      .references(() => moves.id, { onDelete: "cascade" }),
+    text: text("text").notNull(),
+    category: checklistCategoryEnum("category").notNull(),
+    doneAt: timestamp("done_at", { withTimezone: true }),
+    sortOrder: integer("sort_order").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    index("checklist_items_move_idx").on(t.moveId, t.category, t.sortOrder),
   ],
 );
 

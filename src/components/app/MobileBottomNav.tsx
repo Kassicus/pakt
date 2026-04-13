@@ -50,6 +50,7 @@ export function DesktopTopNav({ moveId }: { moveId: string }) {
 
   const items = [
     { href: `/${moveId}/dashboard`, label: "Dashboard" },
+    { href: `/${moveId}/checklist`, label: "Checklist" },
     { href: `/${moveId}/inventory`, label: "Inventory" },
     { href: `/${moveId}/triage`, label: "Triage" },
     { href: `/${moveId}/search`, label: "Search" },

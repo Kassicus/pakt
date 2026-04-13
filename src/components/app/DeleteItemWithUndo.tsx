@@ -6,6 +6,7 @@ import { Loader2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { deleteItem, restoreItem } from "@/actions/items";
+import { enqueue, isNetworkError } from "@/lib/offline";
 
 export function DeleteItemWithUndo({
   itemId,
@@ -19,11 +20,29 @@ export function DeleteItemWithUndo({
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
 
+  function navigateBack() {
+    router.push(
+      backToRoomId
+        ? `/${moveId}/inventory/${backToRoomId}`
+        : `/${moveId}/inventory`,
+    );
+  }
+
+  async function enqueueOfflineDelete() {
+    await enqueue({ kind: "deleteItem", payload: { itemId } });
+    toast("Deleted offline — will sync when online");
+    navigateBack();
+  }
+
   function onDelete() {
     if (!confirm("Delete this item?")) return;
-    const fd = new FormData();
-    fd.set("itemId", itemId);
     startTransition(async () => {
+      if (typeof navigator !== "undefined" && !navigator.onLine) {
+        await enqueueOfflineDelete();
+        return;
+      }
+      const fd = new FormData();
+      fd.set("itemId", itemId);
       try {
         await deleteItem(fd);
         toast("Item deleted", {
@@ -41,12 +60,12 @@ export function DeleteItemWithUndo({
           },
           duration: 8000,
         });
-        router.push(
-          backToRoomId
-            ? `/${moveId}/inventory/${backToRoomId}`
-            : `/${moveId}/inventory`,
-        );
+        navigateBack();
       } catch (err) {
+        if (isNetworkError(err)) {
+          await enqueueOfflineDelete();
+          return;
+        }
         toast.error(err instanceof Error ? err.message : "Couldn't delete");
       }
     });

@@ -5,6 +5,7 @@ import { getDb } from "@/db";
 import { moves } from "@/db/schema";
 import { AppHeader } from "@/components/app/AppHeader";
 import { MobileBottomNav } from "@/components/app/MobileBottomNav";
+import { QueueFlusher } from "@/components/app/QueueFlusher";
 
 export default async function MoveLayout({
   params,
@@ -32,6 +33,7 @@ export default async function MoveLayout({
         {children}
       </main>
       <MobileBottomNav moveId={moveId} />
+      <QueueFlusher />
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { useTransition } from "react";
 import { Trash2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { deleteItem } from "@/actions/items";
+import { enqueue, isNetworkError } from "@/lib/offline";
 
 export function DeleteItemButton({ itemId }: { itemId: string }) {
   const [isPending, startTransition] = useTransition();
@@ -11,12 +12,22 @@ export function DeleteItemButton({ itemId }: { itemId: string }) {
   function onClick() {
     if (isPending) return;
     if (!confirm("Delete this item?")) return;
-    const fd = new FormData();
-    fd.set("itemId", itemId);
     startTransition(async () => {
+      if (typeof navigator !== "undefined" && !navigator.onLine) {
+        await enqueue({ kind: "deleteItem", payload: { itemId } });
+        toast("Deleted offline — will sync when online");
+        return;
+      }
+      const fd = new FormData();
+      fd.set("itemId", itemId);
       try {
         await deleteItem(fd);
       } catch (err) {
+        if (isNetworkError(err)) {
+          await enqueue({ kind: "deleteItem", payload: { itemId } });
+          toast("Deleted offline — will sync when online");
+          return;
+        }
         toast.error(err instanceof Error ? err.message : "Couldn't delete");
       }
     });

@@ -5,9 +5,10 @@ import { revalidatePath } from "next/cache";
 import { eq, and } from "drizzle-orm";
 import { requireUserId } from "@/lib/auth";
 import { getDb } from "@/db";
-import { moves, rooms } from "@/db/schema";
+import { moves, rooms, checklistItems } from "@/db/schema";
 import { generateId } from "@/lib/shortcode";
 import { createMoveSchema, DEFAULT_ROOMS } from "@/lib/validators";
+import { DEFAULT_CHECKLIST } from "@/lib/checklist-defaults";
 
 export async function createMove(formData: FormData): Promise<void> {
   const userId = await requireUserId();
@@ -42,6 +43,15 @@ export async function createMove(formData: FormData): Promise<void> {
     })),
   );
   await db.insert(rooms).values(seeds);
+
+  const checklistSeeds = DEFAULT_CHECKLIST.map((task, idx) => ({
+    id: generateId("chk"),
+    moveId,
+    text: task.text,
+    category: task.category,
+    sortOrder: idx * 10,
+  }));
+  await db.insert(checklistItems).values(checklistSeeds);
 
   revalidatePath("/moves");
   redirect(`/${moveId}/dashboard`);
