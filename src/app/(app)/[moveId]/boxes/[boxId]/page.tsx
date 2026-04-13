@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { and, asc, desc, eq, isNull, notInArray } from "drizzle-orm";
-import { ChevronLeft, QrCode } from "lucide-react";
+import { ChevronLeft, Download, QrCode } from "lucide-react";
 import { requireUserId } from "@/lib/auth";
 import { getDb } from "@/db";
 import {
@@ -152,11 +152,18 @@ export default async function BoxDetailPage({
       </div>
 
       <div className="flex flex-wrap gap-2">
-        <Link
-          href={`/${moveId}/labels?focus=${encodeURIComponent(box.id)}`}
+        <a
+          href={`/api/labels/${box.id}`}
+          download
           className={buttonVariants({ variant: "secondary" })}
         >
-          <QrCode className="mr-2 size-4" /> Print label
+          <Download className="mr-2 size-4" /> Download label PNG
+        </a>
+        <Link
+          href={`/${moveId}/labels?selected=${encodeURIComponent(box.id)}`}
+          className={buttonVariants({ variant: "ghost" })}
+        >
+          <QrCode className="mr-2 size-4" /> All labels
         </Link>
         <BoxStatusControls boxId={box.id} status={box.status as BoxStatus} />
       </div>

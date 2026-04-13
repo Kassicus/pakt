@@ -23,3 +23,16 @@ export async function generateQrSvg(
     margin: options.margin ?? 1,
   });
 }
+
+export async function generateQrPngDataUrl(
+  url: string,
+  sizePx: number,
+  options: { margin?: number } = {},
+): Promise<string> {
+  return QRCode.toDataURL(url, {
+    errorCorrectionLevel: "M",
+    margin: options.margin ?? 0,
+    width: sizePx,
+    color: { dark: "#000000", light: "#ffffff" },
+  });
+}

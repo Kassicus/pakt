@@ -1,31 +1,25 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { and, asc, eq, isNull, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull } from "drizzle-orm";
 import { ChevronLeft } from "lucide-react";
 import { requireUserId } from "@/lib/auth";
 import { getDb } from "@/db";
 import { boxes, moves, rooms } from "@/db/schema";
 import { buildScanUrl, generateQrSvg } from "@/lib/qr";
-import { PrintButton } from "@/components/app/PrintButton";
-
-const SIZE_LABEL: Record<string, string> = {
-  small: "Small",
-  medium: "Medium",
-  large: "Large",
-  dish_pack: "Dish pack",
-  wardrobe: "Wardrobe",
-  tote: "Tote",
-};
+import {
+  LabelsDownloader,
+  type LabelPreview,
+} from "@/components/app/LabelsDownloader";
 
 export default async function LabelsPage({
   params,
   searchParams,
 }: {
   params: Promise<{ moveId: string }>;
-  searchParams: Promise<{ focus?: string }>;
+  searchParams: Promise<{ selected?: string }>;
 }) {
   const { moveId } = await params;
-  const { focus } = await searchParams;
+  const { selected } = await searchParams;
   const userId = await requireUserId();
   const db = getDb();
 
@@ -36,7 +30,9 @@ export default async function LabelsPage({
     .limit(1);
   if (!move) notFound();
 
-  const focusIds = focus ? focus.split(",").filter(Boolean) : [];
+  const preselected = new Set(
+    selected ? selected.split(",").filter(Boolean) : [],
+  );
 
   const rows = await db
     .select({
@@ -53,7 +49,6 @@ export default async function LabelsPage({
         eq(boxes.moveId, moveId),
         eq(boxes.ownerUserId, userId),
         isNull(boxes.deletedAt),
-        ...(focusIds.length > 0 ? [inArray(boxes.id, focusIds)] : []),
       ),
     )
     .orderBy(asc(boxes.shortCode));
@@ -64,62 +59,57 @@ export default async function LabelsPage({
     .where(eq(rooms.moveId, moveId));
   const roomLabel = new Map(roomRows.map((r) => [r.id, r.label] as const));
 
-  const labels = await Promise.all(
-    rows.map(async (box) => ({
-      ...box,
-      sourceLabel: box.sourceRoomId ? roomLabel.get(box.sourceRoomId) ?? null : null,
-      destLabel: box.destinationRoomId
-        ? roomLabel.get(box.destinationRoomId) ?? null
+  const initialSelected = new Set(
+    rows.filter((r) => preselected.has(r.id)).map((r) => r.id),
+  );
+
+  const labels: LabelPreview[] = await Promise.all(
+    rows.map(async (row) => ({
+      id: row.id,
+      shortCode: row.shortCode,
+      size: row.size,
+      fragile: row.fragile,
+      sourceRoomLabel: row.sourceRoomId
+        ? roomLabel.get(row.sourceRoomId) ?? null
         : null,
-      qrSvg: await generateQrSvg(buildScanUrl(box.shortCode, moveId)),
+      destinationRoomLabel: row.destinationRoomId
+        ? roomLabel.get(row.destinationRoomId) ?? null
+        : null,
+      qrSvg: await generateQrSvg(buildScanUrl(row.shortCode, moveId)),
     })),
   );
 
   return (
     <div className="space-y-6">
-      <div className="print:hidden">
+      <div>
         <Link
           href={`/${moveId}/dashboard`}
           className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
         >
           <ChevronLeft className="size-4" /> Dashboard
         </Link>
-        <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h1 className="text-3xl font-semibold tracking-tight">Labels</h1>
-            <p className="mt-1 text-muted-foreground">
-              {labels.length === 0
-                ? "No boxes to print yet."
-                : `${labels.length} label${labels.length === 1 ? "" : "s"}. Print on US Letter, cut, and tape to your boxes.`}
-            </p>
-          </div>
-          {labels.length > 0 && <PrintButton />}
+        <div className="mt-2 space-y-1">
+          <h1 className="text-3xl font-semibold tracking-tight">Labels</h1>
+          <p className="text-muted-foreground">
+            {labels.length === 0
+              ? "Create some boxes first, then come back to download labels."
+              : `${labels.length} label${labels.length === 1 ? "" : "s"} sized for 40×30 mm sticky labels (472×354 px PNG).`}
+          </p>
         </div>
       </div>
 
-      {labels.length === 0 ? (
-        <div className="rounded-lg border border-dashed py-12 text-center text-muted-foreground print:hidden">
-          Create some boxes first, then come back here to print.
-        </div>
-      ) : (
-        <div className="label-sheet">
-          {labels.map((label) => (
-            <div key={label.id} className="label-card">
-              <div className="label-qr" dangerouslySetInnerHTML={{ __html: label.qrSvg }} />
-              <div className="label-meta">
-                <div className="label-code">{label.shortCode}</div>
-                <div className="label-size">{SIZE_LABEL[label.size]}</div>
-                {label.destLabel && (
-                  <div className="label-dest">→ {label.destLabel}</div>
-                )}
-                {label.sourceLabel && (
-                  <div className="label-source">from {label.sourceLabel}</div>
-                )}
-                {label.fragile && <div className="label-fragile">FRAGILE</div>}
-              </div>
-            </div>
-          ))}
-        </div>
+      <LabelsDownloader
+        moveId={moveId}
+        labels={labels}
+        initialSelected={initialSelected}
+      />
+
+      {labels.length > 0 && (
+        <p className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">
+          Import a single PNG (or the whole ZIP) into your label-maker software
+          and print at actual size. The QR encodes the scan URL; short code +
+          destination room print big for quick reading.
+        </p>
       )}
     </div>
   );
