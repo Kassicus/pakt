@@ -1,13 +1,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { and, asc, desc, eq, isNull } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull } from "drizzle-orm";
 import { ChevronLeft } from "lucide-react";
 import { requireUserId } from "@/lib/auth";
 import { getDb } from "@/db";
-import { itemCategories, items, moves, rooms } from "@/db/schema";
+import { itemCategories, itemPhotos, items, moves, rooms } from "@/db/schema";
 import { AddItemForm, type CategoryOption } from "@/components/app/AddItemForm";
 import { DispositionChips } from "@/components/app/DispositionChips";
 import { DeleteItemButton } from "@/components/app/DeleteItemButton";
+import { PhotoThumbnail } from "@/components/app/PhotoThumbnail";
 import { Badge } from "@/components/ui/badge";
 import type { Disposition } from "@/lib/validators";
 
@@ -70,6 +71,29 @@ export default async function RoomDetailPage({
       .orderBy(desc(items.createdAt)),
   ]);
 
+  const firstPhotoByItem = new Map<string, { url: string }>();
+  if (itemRows.length > 0) {
+    const photos = await db
+      .select({
+        itemId: itemPhotos.itemId,
+        blobUrl: itemPhotos.blobUrl,
+        createdAt: itemPhotos.createdAt,
+      })
+      .from(itemPhotos)
+      .where(
+        inArray(
+          itemPhotos.itemId,
+          itemRows.map((i) => i.id),
+        ),
+      )
+      .orderBy(asc(itemPhotos.createdAt));
+    for (const p of photos) {
+      if (!firstPhotoByItem.has(p.itemId)) {
+        firstPhotoByItem.set(p.itemId, { url: p.blobUrl });
+      }
+    }
+  }
+
   const categories: CategoryOption[] = categoryRows.map((c) => ({
     id: c.id,
     label: c.label,
@@ -101,26 +125,39 @@ export default async function RoomDetailPage({
         </div>
       ) : (
         <ul className="divide-y rounded-lg border bg-card">
-          {itemRows.map((item) => (
-            <li key={item.id} className="flex flex-wrap items-center gap-3 p-4">
-              <div className="min-w-0 flex-1">
-                <div className="flex items-baseline gap-2">
-                  <div className="truncate font-medium">{item.name}</div>
-                  {item.quantity > 1 && (
-                    <div className="text-xs tabular-nums text-muted-foreground">
-                      × {item.quantity}
-                    </div>
-                  )}
+          {itemRows.map((item) => {
+            const photo = firstPhotoByItem.get(item.id);
+            return (
+              <li key={item.id} className="flex flex-wrap items-center gap-3 p-4">
+                {photo ? (
+                  <PhotoThumbnail src={photo.url} alt={item.name} size={48} />
+                ) : (
+                  <div className="size-12 shrink-0 rounded-md border border-dashed bg-muted/40" />
+                )}
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-baseline gap-2">
+                    <Link
+                      href={`/${moveId}/inventory/item/${item.id}`}
+                      className="truncate font-medium hover:underline"
+                    >
+                      {item.name}
+                    </Link>
+                    {item.quantity > 1 && (
+                      <div className="text-xs tabular-nums text-muted-foreground">
+                        × {item.quantity}
+                      </div>
+                    )}
+                  </div>
+                  <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                    {item.categoryLabel && <span>{item.categoryLabel}</span>}
+                    {item.notes && <span className="truncate">— {item.notes}</span>}
+                  </div>
                 </div>
-                <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                  {item.categoryLabel && <span>{item.categoryLabel}</span>}
-                  {item.notes && <span className="truncate">— {item.notes}</span>}
-                </div>
-              </div>
-              <DispositionChips itemId={item.id} value={item.disposition as Disposition} />
-              <DeleteItemButton itemId={item.id} />
-            </li>
-          ))}
+                <DispositionChips itemId={item.id} value={item.disposition as Disposition} />
+                <DeleteItemButton itemId={item.id} />
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>

@@ -175,6 +175,7 @@ export const itemPhotos = pgTable("item_photos", {
     .notNull()
     .references(() => items.id, { onDelete: "cascade" }),
   blobPathname: text("blob_pathname").notNull(),
+  blobUrl: text("blob_url").notNull(),
   width: integer("width"),
   height: integer("height"),
   byteSize: integer("byte_size"),

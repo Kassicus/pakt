@@ -15,6 +15,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { addItem } from "@/actions/items";
+import { attachPhoto } from "@/actions/photos";
+import { uploadPhotoFromFile } from "@/lib/blob";
+import { CameraCapture, type StagedPhoto } from "./CameraCapture";
 
 export type CategoryOption = {
   id: string;
@@ -36,6 +39,7 @@ export function AddItemForm({
   const [categoryId, setCategoryId] = useState<string>(categories[0]?.id ?? "");
   const [quantity, setQuantity] = useState("1");
   const [notes, setNotes] = useState("");
+  const [photos, setPhotos] = useState<StagedPhoto[]>([]);
   const nameRef = useRef<HTMLInputElement>(null);
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -50,12 +54,39 @@ export function AddItemForm({
     fd.set("quantity", quantity);
     fd.set("notes", notes.trim());
 
+    const stagedPhotos = photos;
+
     startTransition(async () => {
       try {
-        await addItem(fd);
+        const { itemId } = await addItem(fd);
+
+        for (const staged of stagedPhotos) {
+          try {
+            const uploaded = await uploadPhotoFromFile(staged.file, moveId);
+            await attachPhoto({
+              itemId,
+              blobPathname: uploaded.pathname,
+              url: uploaded.url,
+              width: uploaded.width || undefined,
+              height: uploaded.height || undefined,
+              byteSize: uploaded.byteSize,
+              contentType: uploaded.contentType,
+            });
+          } catch (photoErr) {
+            toast.error(
+              photoErr instanceof Error
+                ? `Photo upload: ${photoErr.message}`
+                : "Photo upload failed",
+            );
+          } finally {
+            URL.revokeObjectURL(staged.previewUrl);
+          }
+        }
+
         setName("");
         setQuantity("1");
         setNotes("");
+        setPhotos([]);
         nameRef.current?.focus();
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "Couldn't add item");
@@ -116,6 +147,11 @@ export function AddItemForm({
       </div>
 
       <div className="space-y-1.5">
+        <Label className="text-xs">Photo (optional)</Label>
+        <CameraCapture photos={photos} onChange={setPhotos} max={1} disabled={isPending} />
+      </div>
+
+      <div className="space-y-1.5">
         <Label htmlFor="notes" className="text-xs">
           Notes <span className="text-muted-foreground">(optional)</span>
         </Label>
@@ -136,7 +172,7 @@ export function AddItemForm({
           ) : (
             <Plus className="mr-2 size-4" />
           )}
-          Add item
+          {isPending && photos.length > 0 ? "Uploading…" : "Add item"}
         </Button>
       </div>
     </form>

@@ -1,0 +1,1 @@
+ALTER TABLE "item_photos" ADD COLUMN "blob_url" text NOT NULL;

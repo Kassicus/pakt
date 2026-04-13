@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, PackageOpen, Box, ScanLine } from "lucide-react";
+import { Home, PackageOpen, Shuffle, Box, ScanLine } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function MobileBottomNav({ moveId }: { moveId: string }) {
@@ -11,6 +11,7 @@ export function MobileBottomNav({ moveId }: { moveId: string }) {
   const items = [
     { href: `/${moveId}/dashboard`, label: "Home", icon: Home },
     { href: `/${moveId}/inventory`, label: "Inventory", icon: PackageOpen },
+    { href: `/${moveId}/triage`, label: "Triage", icon: Shuffle },
     { href: `/${moveId}/boxes`, label: "Boxes", icon: Box },
     { href: `/${moveId}/pack`, label: "Scan", icon: ScanLine },
   ];
@@ -20,7 +21,7 @@ export function MobileBottomNav({ moveId }: { moveId: string }) {
       className="fixed inset-x-0 bottom-0 z-30 border-t bg-background/95 backdrop-blur md:hidden"
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
     >
-      <ul className="mx-auto grid max-w-5xl grid-cols-4">
+      <ul className="mx-auto grid max-w-5xl grid-cols-5">
         {items.map((item) => {
           const active = pathname.startsWith(item.href);
           const Icon = item.icon;
@@ -50,6 +51,7 @@ export function DesktopTopNav({ moveId }: { moveId: string }) {
   const items = [
     { href: `/${moveId}/dashboard`, label: "Dashboard" },
     { href: `/${moveId}/inventory`, label: "Inventory" },
+    { href: `/${moveId}/triage`, label: "Triage" },
     { href: `/${moveId}/boxes`, label: "Boxes" },
     { href: `/${moveId}/pack`, label: "Pack" },
     { href: `/${moveId}/labels`, label: "Labels" },

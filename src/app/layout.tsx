@@ -3,6 +3,8 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { SwRegister } from "@/components/app/SwRegister";
+import { InstallPrompt } from "@/components/app/InstallPrompt";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -45,8 +47,10 @@ export default function RootLayout({
         <body className="min-h-full flex flex-col bg-background text-foreground">
           <TooltipProvider delay={200}>
             {children}
+            <InstallPrompt />
             <Toaster richColors closeButton />
           </TooltipProvider>
+          <SwRegister />
         </body>
       </html>
     </ClerkProvider>

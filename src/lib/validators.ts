@@ -74,6 +74,32 @@ export const deleteItemSchema = z.object({
   itemId: z.string().min(1),
 });
 
+export const restoreItemSchema = z.object({
+  itemId: z.string().min(1),
+});
+
+const emptyToUndefined = (v: unknown) => (v === "" || v == null ? undefined : v);
+
+export const updateItemSchema = z.object({
+  itemId: z.string().min(1),
+  name: z.string().trim().min(1, "Name is required").max(120),
+  categoryId: z.string().min(1, "Pick a category"),
+  quantity: z.coerce.number().int().min(1).max(999),
+  fragility: fragilitySchema,
+  sourceRoomId: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
+  destinationRoomId: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
+  notes: z.preprocess(emptyToUndefined, z.string().trim().max(500).optional()),
+  volumeCuFtOverride: z.preprocess(
+    emptyToUndefined,
+    z.coerce.number().positive().max(500).optional(),
+  ),
+  weightLbsOverride: z.preprocess(
+    emptyToUndefined,
+    z.coerce.number().positive().max(5000).optional(),
+  ),
+});
+export type UpdateItemInput = z.infer<typeof updateItemSchema>;
+
 export const boxSizes = [
   "small",
   "medium",
@@ -128,5 +154,36 @@ export const removeItemFromBoxSchema = z.object({
 export const deleteBoxSchema = z.object({
   boxId: z.string().min(1),
 });
+
+export const attachPhotoSchema = z.object({
+  itemId: z.string().min(1),
+  blobPathname: z.string().min(1).max(500),
+  url: z.string().url(),
+  width: z.number().int().positive().max(20000).optional(),
+  height: z.number().int().positive().max(20000).optional(),
+  byteSize: z.number().int().nonnegative().max(50 * 1024 * 1024).optional(),
+  contentType: z.string().max(100).optional(),
+});
+
+export const deletePhotoSchema = z.object({
+  photoId: z.string().min(1),
+});
+
+export const decisionAnswersSchema = z
+  .object({
+    lastUsedMonths: z.number().int().min(0).max(600).optional(),
+    replacementCostUsd: z.number().nonnegative().max(1_000_000).optional(),
+    sentimental: z.boolean().optional(),
+    wouldBuyAgain: z.enum(["yes", "no", "unsure"]).optional(),
+  })
+  .strict();
+export type DecisionAnswersInput = z.infer<typeof decisionAnswersSchema>;
+
+export const saveDecisionSchema = z.object({
+  itemId: z.string().min(1),
+  answers: decisionAnswersSchema,
+  apply: dispositionSchema.optional(),
+});
+export type SaveDecisionInput = z.infer<typeof saveDecisionSchema>;
 
 export { DEFAULT_ROOMS };
