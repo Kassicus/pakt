@@ -3,10 +3,9 @@ import { buildScanUrl, generateQrPngDataUrl } from "@/lib/qr";
 
 export const LABEL_WIDTH = 472;
 export const LABEL_HEIGHT = 354;
-const QR_SIZE = 240;
-const PAD = 14;
-const GAP = 12;
-const FRAGILE_BAR_HEIGHT = 30;
+const QR_SIZE = 290;
+const PAD = 12;
+const FRAGILE_BAR_HEIGHT = 40;
 
 export type LabelBox = {
   shortCode: string;
@@ -17,18 +16,33 @@ export type LabelBox = {
   sourceRoomLabel: string | null;
 };
 
-const SIZE_LABEL: Record<string, string> = {
-  small: "Small",
-  medium: "Medium",
-  large: "Large",
-  dish_pack: "Dish pack",
-  wardrobe: "Wardrobe",
-  tote: "Tote",
-};
+function routeLine(src: string | null, dest: string | null): string | null {
+  if (src && dest) return `${src} → ${dest}`;
+  if (dest) return `→ ${dest}`;
+  if (src) return `${src} →`;
+  return null;
+}
 
 function renderLabelJsx(box: LabelBox, qrDataUrl: string) {
-  const rightColX = PAD + QR_SIZE + GAP;
-  const bottomReserve = box.fragile ? FRAGILE_BAR_HEIGHT : 0;
+  const contentHeight = LABEL_HEIGHT - (box.fragile ? FRAGILE_BAR_HEIGHT : 0);
+  const contentCenterY = contentHeight / 2;
+  const qrTop = Math.max(PAD, (contentHeight - QR_SIZE) / 2);
+
+  // Right strip: after QR, to right edge
+  const stripLeft = PAD + QR_SIZE + 8; // 310
+  const stripRight = LABEL_WIDTH - PAD; // 460
+  const stripWidth = stripRight - stripLeft; // 150
+  const col1CenterX = stripLeft + stripWidth * 0.35; // ~363 — big short code closer to QR
+  const col2CenterX = stripLeft + stripWidth * 0.78; // ~427 — smaller route on far right
+
+  // Pre-rotation text boxes — wide enough to fit the text, rotated around their center
+  const codeBoxW = 320;
+  const codeBoxH = 60;
+  const routeBoxW = 320;
+  const routeBoxH = 28;
+
+  const route = routeLine(box.sourceRoomLabel, box.destinationRoomLabel);
+
   return (
     <div
       style={{
@@ -40,12 +54,12 @@ function renderLabelJsx(box: LabelBox, qrDataUrl: string) {
         color: "#000000",
       }}
     >
-      {/* QR, vertically centered in the non-fragile area */}
+      {/* QR */}
       <div
         style={{
           position: "absolute",
           left: PAD,
-          top: PAD,
+          top: qrTop,
           width: QR_SIZE,
           height: QR_SIZE,
           display: "flex",
@@ -55,70 +69,53 @@ function renderLabelJsx(box: LabelBox, qrDataUrl: string) {
         <img src={qrDataUrl} alt="" width={QR_SIZE} height={QR_SIZE} />
       </div>
 
-      {/* Right-column text, absolute so it escapes the flex row */}
+      {/* Short code — rotated -90°, big and bold, closer to QR */}
       <div
         style={{
           position: "absolute",
-          left: rightColX,
-          top: PAD,
-          right: PAD,
-          bottom: PAD + bottomReserve,
+          left: col1CenterX - codeBoxW / 2,
+          top: contentCenterY - codeBoxH / 2,
+          width: codeBoxW,
+          height: codeBoxH,
           display: "flex",
-          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          transform: "rotate(-90deg)",
+          transformOrigin: "center center",
+          fontSize: 56,
+          fontWeight: 900,
+          letterSpacing: "0.04em",
+          whiteSpace: "nowrap",
         }}
       >
+        {box.shortCode}
+      </div>
+
+      {/* source → destination — rotated -90°, medium, far right */}
+      {route ? (
         <div
           style={{
+            position: "absolute",
+            left: col2CenterX - routeBoxW / 2,
+            top: contentCenterY - routeBoxH / 2,
+            width: routeBoxW,
+            height: routeBoxH,
             display: "flex",
-            fontSize: 46,
-            fontWeight: 900,
-            lineHeight: 1,
-            letterSpacing: "0.04em",
+            alignItems: "center",
+            justifyContent: "center",
+            transform: "rotate(-90deg)",
+            transformOrigin: "center center",
+            fontSize: 24,
+            fontWeight: 700,
+            letterSpacing: "0.01em",
             whiteSpace: "nowrap",
           }}
         >
-          {box.shortCode}
+          {route}
         </div>
-        <div
-          style={{
-            display: "flex",
-            marginTop: 6,
-            fontSize: 13,
-            color: "#555",
-            letterSpacing: "0.14em",
-            textTransform: "uppercase",
-          }}
-        >
-          {SIZE_LABEL[box.size] ?? box.size}
-        </div>
-        {box.destinationRoomLabel ? (
-          <div
-            style={{
-              display: "flex",
-              marginTop: 16,
-              fontSize: 26,
-              fontWeight: 700,
-              lineHeight: 1.1,
-            }}
-          >
-            → {box.destinationRoomLabel}
-          </div>
-        ) : null}
-        {box.sourceRoomLabel ? (
-          <div
-            style={{
-              display: "flex",
-              marginTop: 8,
-              fontSize: 18,
-              color: "#333",
-              fontWeight: 500,
-            }}
-          >
-            from {box.sourceRoomLabel}
-          </div>
-        ) : null}
-      </div>
+      ) : null}
 
+      {/* Fragile stripe — thicker font for thermal print legibility */}
       {box.fragile ? (
         <div
           style={{
@@ -131,9 +128,9 @@ function renderLabelJsx(box: LabelBox, qrDataUrl: string) {
             justifyContent: "center",
             background: "#000",
             color: "#fff",
-            fontSize: 18,
+            fontSize: 26,
             fontWeight: 900,
-            letterSpacing: "0.35em",
+            letterSpacing: "0.3em",
             height: FRAGILE_BAR_HEIGHT,
           }}
         >
