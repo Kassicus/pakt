@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { auth } from "@clerk/nextjs/server";
+import { getUserIdOrNull } from "@/lib/auth";
 import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ArrowRight, Box, Camera, QrCode, Truck } from "lucide-react";
@@ -27,8 +27,10 @@ const features = [
   },
 ];
 
+export const dynamic = "force-dynamic";
+
 export default async function HomePage() {
-  const { userId } = await auth();
+  const userId = await getUserIdOrNull();
   const isSignedIn = Boolean(userId);
 
   return (
@@ -51,10 +53,10 @@ export default async function HomePage() {
             </Link>
           ) : (
             <>
-              <Link href="/sign-up" className={buttonVariants({ size: "lg" })}>
+              <Link href="/auth/sign-up" className={buttonVariants({ size: "lg" })}>
                 Start packing <ArrowRight className="ml-2 size-4" />
               </Link>
-              <Link href="/sign-in" className={buttonVariants({ size: "lg", variant: "outline" })}>
+              <Link href="/auth/sign-in" className={buttonVariants({ size: "lg", variant: "outline" })}>
                 Sign in
               </Link>
             </>

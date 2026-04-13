@@ -1,13 +1,13 @@
 import Link from "next/link";
-import { UserButton } from "@clerk/nextjs";
-import { requireUserId } from "@/lib/auth";
+import { requireSession } from "@/lib/auth";
+import { UserMenu } from "@/components/app/UserMenu";
 
 export default async function AppLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  await requireUserId();
+  const session = await requireSession();
 
   return (
     <div className="flex min-h-svh flex-col">
@@ -16,7 +16,7 @@ export default async function AppLayout({
           <Link href="/moves" className="font-semibold tracking-tight">
             pakt
           </Link>
-          <UserButton />
+          <UserMenu email={session.email} name={session.name} image={session.image} />
         </div>
       </header>
       <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-6">{children}</main>

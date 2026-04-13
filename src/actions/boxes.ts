@@ -20,7 +20,7 @@ async function assertMoveOwnership(moveId: string, userId: string) {
   const [row] = await db
     .select({ id: moves.id })
     .from(moves)
-    .where(and(eq(moves.id, moveId), eq(moves.ownerClerkUserId, userId)))
+    .where(and(eq(moves.id, moveId), eq(moves.ownerUserId, userId)))
     .limit(1);
   if (!row) throw new Error("Move not found");
 }
@@ -30,7 +30,7 @@ async function assertBoxOwnership(boxId: string, userId: string) {
   const [row] = await db
     .select({ moveId: boxes.moveId, shortCode: boxes.shortCode })
     .from(boxes)
-    .where(and(eq(boxes.id, boxId), eq(boxes.ownerClerkUserId, userId)))
+    .where(and(eq(boxes.id, boxId), eq(boxes.ownerUserId, userId)))
     .limit(1);
   if (!row) throw new Error("Box not found");
   return row;
@@ -69,7 +69,7 @@ export async function createBox(formData: FormData): Promise<void> {
   await db.insert(boxes).values({
     id: boxId,
     moveId: parsed.moveId,
-    ownerClerkUserId: userId,
+    ownerUserId: userId,
     shortCode,
     size: parsed.size,
     sourceRoomId: parsed.sourceRoomId || null,
@@ -96,7 +96,7 @@ export async function addItemsToBox(boxId: string, itemIds: string[]): Promise<v
       and(
         inArray(items.id, parsed.itemIds),
         eq(items.moveId, moveId),
-        eq(items.ownerClerkUserId, userId),
+        eq(items.ownerUserId, userId),
       ),
     );
   const allowed = new Set(ownedItems.map((i) => i.id));

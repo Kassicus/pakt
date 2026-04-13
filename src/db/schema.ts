@@ -68,19 +68,11 @@ export const boxStatusEnum = pgEnum("box_status", [
   "unpacked",
 ]);
 
-export const users = pgTable("users", {
-  clerkUserId: text("clerk_user_id").primaryKey(),
-  email: text("email").notNull(),
-  displayName: text("display_name"),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
-});
-
 export const moves = pgTable(
   "moves",
   {
     id: text("id").primaryKey(),
-    ownerClerkUserId: text("owner_clerk_user_id").notNull(),
+    ownerUserId: text("owner_user_id").notNull(),
     name: text("name").notNull(),
     originAddress: text("origin_address"),
     destinationAddress: text("destination_address"),
@@ -89,7 +81,7 @@ export const moves = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
-  (t) => [index("moves_owner_status_idx").on(t.ownerClerkUserId, t.status)],
+  (t) => [index("moves_owner_status_idx").on(t.ownerUserId, t.status)],
 );
 
 export const rooms = pgTable(
@@ -137,7 +129,7 @@ export const items = pgTable(
     moveId: text("move_id")
       .notNull()
       .references(() => moves.id, { onDelete: "cascade" }),
-    ownerClerkUserId: text("owner_clerk_user_id").notNull(),
+    ownerUserId: text("owner_user_id").notNull(),
     name: text("name").notNull(),
     categoryId: text("category_id").references(() => itemCategories.id, {
       onDelete: "set null",
@@ -190,7 +182,7 @@ export const boxes = pgTable(
     moveId: text("move_id")
       .notNull()
       .references(() => moves.id, { onDelete: "cascade" }),
-    ownerClerkUserId: text("owner_clerk_user_id").notNull(),
+    ownerUserId: text("owner_user_id").notNull(),
     shortCode: text("short_code").notNull(),
     size: boxSizeEnum("size").notNull(),
     sourceRoomId: text("source_room_id").references(() => rooms.id, {

@@ -5,25 +5,9 @@ import { revalidatePath } from "next/cache";
 import { eq, and } from "drizzle-orm";
 import { requireUserId } from "@/lib/auth";
 import { getDb } from "@/db";
-import { moves, rooms, users } from "@/db/schema";
+import { moves, rooms } from "@/db/schema";
 import { generateId } from "@/lib/shortcode";
 import { createMoveSchema, DEFAULT_ROOMS } from "@/lib/validators";
-import { currentUser } from "@clerk/nextjs/server";
-
-async function ensureUserRow(userId: string) {
-  const db = getDb();
-  const existing = await db.select().from(users).where(eq(users.clerkUserId, userId)).limit(1);
-  if (existing.length > 0) return;
-  const user = await currentUser();
-  await db
-    .insert(users)
-    .values({
-      clerkUserId: userId,
-      email: user?.emailAddresses[0]?.emailAddress ?? "unknown@example.com",
-      displayName: user?.firstName ?? user?.username ?? null,
-    })
-    .onConflictDoNothing();
-}
 
 export async function createMove(formData: FormData): Promise<void> {
   const userId = await requireUserId();
@@ -37,13 +21,11 @@ export async function createMove(formData: FormData): Promise<void> {
     throw new Error(parsed.error.issues[0]?.message ?? "Invalid input");
   }
 
-  await ensureUserRow(userId);
-
   const db = getDb();
   const moveId = generateId("mov");
   await db.insert(moves).values({
     id: moveId,
-    ownerClerkUserId: userId,
+    ownerUserId: userId,
     name: parsed.data.name,
     originAddress: parsed.data.originAddress || null,
     destinationAddress: parsed.data.destinationAddress || null,
@@ -66,6 +48,6 @@ export async function deleteMove(moveId: string) {
   const db = getDb();
   await db
     .delete(moves)
-    .where(and(eq(moves.id, moveId), eq(moves.ownerClerkUserId, userId)));
+    .where(and(eq(moves.id, moveId), eq(moves.ownerUserId, userId)));
   revalidatePath("/moves");
 }

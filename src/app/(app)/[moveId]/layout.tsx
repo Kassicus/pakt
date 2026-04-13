@@ -1,11 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { and, eq } from "drizzle-orm";
-import { UserButton } from "@clerk/nextjs";
-import { requireUserId } from "@/lib/auth";
+import { requireSession } from "@/lib/auth";
 import { getDb } from "@/db";
 import { moves } from "@/db/schema";
 import { DesktopTopNav, MobileBottomNav } from "@/components/app/MobileBottomNav";
+import { UserMenu } from "@/components/app/UserMenu";
 
 export default async function MoveLayout({
   params,
@@ -15,13 +15,13 @@ export default async function MoveLayout({
   children: React.ReactNode;
 }) {
   const { moveId } = await params;
-  const userId = await requireUserId();
+  const session = await requireSession();
   const db = getDb();
 
   const [move] = await db
     .select({ id: moves.id, name: moves.name })
     .from(moves)
-    .where(and(eq(moves.id, moveId), eq(moves.ownerClerkUserId, userId)))
+    .where(and(eq(moves.id, moveId), eq(moves.ownerUserId, session.userId)))
     .limit(1);
 
   if (!move) notFound();
@@ -38,7 +38,7 @@ export default async function MoveLayout({
           </Link>
           <div className="ml-auto flex items-center gap-4">
             <DesktopTopNav moveId={moveId} />
-            <UserButton />
+            <UserMenu email={session.email} name={session.name} image={session.image} />
           </div>
         </div>
       </header>

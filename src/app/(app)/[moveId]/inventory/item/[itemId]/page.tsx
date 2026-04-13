@@ -45,7 +45,7 @@ export default async function ItemDetailPage({
       and(
         eq(items.id, itemId),
         eq(items.moveId, moveId),
-        eq(items.ownerClerkUserId, userId),
+        eq(items.ownerUserId, userId),
         isNull(items.deletedAt),
       ),
     )

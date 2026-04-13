@@ -13,7 +13,7 @@ async function assertMoveOwnership(moveId: string, userId: string) {
   const [row] = await db
     .select({ id: moves.id })
     .from(moves)
-    .where(and(eq(moves.id, moveId), eq(moves.ownerClerkUserId, userId)))
+    .where(and(eq(moves.id, moveId), eq(moves.ownerUserId, userId)))
     .limit(1);
   if (!row) throw new Error("Move not found");
 }
@@ -24,7 +24,7 @@ async function assertRoomOwnership(roomId: string, userId: string) {
     .select({ moveId: rooms.moveId })
     .from(rooms)
     .innerJoin(moves, eq(moves.id, rooms.moveId))
-    .where(and(eq(rooms.id, roomId), eq(moves.ownerClerkUserId, userId)))
+    .where(and(eq(rooms.id, roomId), eq(moves.ownerUserId, userId)))
     .limit(1);
   if (!row) throw new Error("Room not found");
   return row.moveId;

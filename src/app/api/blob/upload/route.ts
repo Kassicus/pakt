@@ -26,7 +26,7 @@ export async function POST(request: Request): Promise<Response> {
         const [row] = await db
           .select({ id: moves.id })
           .from(moves)
-          .where(and(eq(moves.id, moveId), eq(moves.ownerClerkUserId, userId)))
+          .where(and(eq(moves.id, moveId), eq(moves.ownerUserId, userId)))
           .limit(1);
         if (!row) throw new Error("Move not found for this user");
 

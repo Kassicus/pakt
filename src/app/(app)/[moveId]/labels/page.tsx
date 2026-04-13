@@ -32,7 +32,7 @@ export default async function LabelsPage({
   const [move] = await db
     .select({ id: moves.id, name: moves.name })
     .from(moves)
-    .where(and(eq(moves.id, moveId), eq(moves.ownerClerkUserId, userId)))
+    .where(and(eq(moves.id, moveId), eq(moves.ownerUserId, userId)))
     .limit(1);
   if (!move) notFound();
 
@@ -51,7 +51,7 @@ export default async function LabelsPage({
     .where(
       and(
         eq(boxes.moveId, moveId),
-        eq(boxes.ownerClerkUserId, userId),
+        eq(boxes.ownerUserId, userId),
         isNull(boxes.deletedAt),
         ...(focusIds.length > 0 ? [inArray(boxes.id, focusIds)] : []),
       ),

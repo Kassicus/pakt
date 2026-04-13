@@ -20,7 +20,7 @@ export default async function NewBoxPage({
   const [move] = await db
     .select({ id: moves.id })
     .from(moves)
-    .where(and(eq(moves.id, moveId), eq(moves.ownerClerkUserId, userId)))
+    .where(and(eq(moves.id, moveId), eq(moves.ownerUserId, userId)))
     .limit(1);
   if (!move) notFound();
 

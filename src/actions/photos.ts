@@ -14,7 +14,7 @@ async function assertItemOwnership(itemId: string, userId: string) {
   const [row] = await db
     .select({ id: items.id, moveId: items.moveId, sourceRoomId: items.sourceRoomId })
     .from(items)
-    .where(and(eq(items.id, itemId), eq(items.ownerClerkUserId, userId)))
+    .where(and(eq(items.id, itemId), eq(items.ownerUserId, userId)))
     .limit(1);
   if (!row) throw new Error("Item not found");
   return row;
@@ -64,14 +64,14 @@ export async function deletePhoto(photoId: string): Promise<void> {
       blobPathname: itemPhotos.blobPathname,
       moveId: items.moveId,
       sourceRoomId: items.sourceRoomId,
-      ownerClerkUserId: items.ownerClerkUserId,
+      ownerUserId: items.ownerUserId,
     })
     .from(itemPhotos)
     .innerJoin(items, eq(items.id, itemPhotos.itemId))
     .where(eq(itemPhotos.id, parsed.photoId))
     .limit(1);
 
-  if (!photo || photo.ownerClerkUserId !== userId) {
+  if (!photo || photo.ownerUserId !== userId) {
     throw new Error("Photo not found");
   }
 

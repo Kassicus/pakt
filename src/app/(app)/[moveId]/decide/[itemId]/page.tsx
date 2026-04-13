@@ -33,7 +33,7 @@ export default async function DecidePage({
       and(
         eq(items.id, itemId),
         eq(items.moveId, moveId),
-        eq(items.ownerClerkUserId, userId),
+        eq(items.ownerUserId, userId),
         isNull(items.deletedAt),
       ),
     )

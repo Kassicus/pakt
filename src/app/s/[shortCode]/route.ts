@@ -25,7 +25,7 @@ export async function GET(
     .where(
       and(
         eq(boxes.shortCode, shortCode),
-        eq(boxes.ownerClerkUserId, userId),
+        eq(boxes.ownerUserId, userId),
         ...(moveId ? [eq(boxes.moveId, moveId)] : []),
       ),
     )

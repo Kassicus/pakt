@@ -31,7 +31,7 @@ export default async function TriagePage({
     .where(
       and(
         eq(items.moveId, moveId),
-        eq(items.ownerClerkUserId, userId),
+        eq(items.ownerUserId, userId),
         eq(items.disposition, "undecided"),
         isNull(items.deletedAt),
       ),

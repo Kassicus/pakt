@@ -57,7 +57,7 @@ export default async function BoxDetailPage({
       and(
         eq(boxes.id, boxId),
         eq(boxes.moveId, moveId),
-        eq(boxes.ownerClerkUserId, userId),
+        eq(boxes.ownerUserId, userId),
         isNull(boxes.deletedAt),
       ),
     )

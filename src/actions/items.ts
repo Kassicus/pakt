@@ -22,7 +22,7 @@ async function assertMoveOwnership(moveId: string, userId: string) {
   const [row] = await db
     .select({ id: moves.id })
     .from(moves)
-    .where(and(eq(moves.id, moveId), eq(moves.ownerClerkUserId, userId)))
+    .where(and(eq(moves.id, moveId), eq(moves.ownerUserId, userId)))
     .limit(1);
   if (!row) throw new Error("Move not found");
 }
@@ -32,7 +32,7 @@ async function assertItemOwnership(itemId: string, userId: string) {
   const [row] = await db
     .select({ moveId: items.moveId, sourceRoomId: items.sourceRoomId })
     .from(items)
-    .where(and(eq(items.id, itemId), eq(items.ownerClerkUserId, userId)))
+    .where(and(eq(items.id, itemId), eq(items.ownerUserId, userId)))
     .limit(1);
   if (!row) throw new Error("Item not found");
   return row;
@@ -57,7 +57,7 @@ export async function addItem(formData: FormData): Promise<{ itemId: string }> {
   await db.insert(items).values({
     id: itemId,
     moveId: parsed.moveId,
-    ownerClerkUserId: userId,
+    ownerUserId: userId,
     name: parsed.name,
     categoryId: parsed.categoryId,
     sourceRoomId: parsed.sourceRoomId,

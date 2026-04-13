@@ -25,7 +25,7 @@ export default async function MovesPage() {
   const userMoves = await db
     .select()
     .from(moves)
-    .where(eq(moves.ownerClerkUserId, userId))
+    .where(eq(moves.ownerUserId, userId))
     .orderBy(desc(moves.createdAt));
 
   if (userMoves.length === 0) {

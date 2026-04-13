@@ -23,7 +23,7 @@ export async function GET(
       and(
         eq(boxes.shortCode, shortCode),
         eq(boxes.moveId, moveId),
-        eq(boxes.ownerClerkUserId, userId),
+        eq(boxes.ownerUserId, userId),
       ),
     )
     .limit(1);

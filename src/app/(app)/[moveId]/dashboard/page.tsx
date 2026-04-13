@@ -41,7 +41,7 @@ export default async function DashboardPage({
   const [move] = await db
     .select()
     .from(moves)
-    .where(and(eq(moves.id, moveId), eq(moves.ownerClerkUserId, userId)))
+    .where(and(eq(moves.id, moveId), eq(moves.ownerUserId, userId)))
     .limit(1);
 
   if (!move) return null;

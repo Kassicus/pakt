@@ -33,7 +33,7 @@ export default async function RoomDetailPage({
       and(
         eq(rooms.id, roomId),
         eq(rooms.moveId, moveId),
-        eq(moves.ownerClerkUserId, userId),
+        eq(moves.ownerUserId, userId),
       ),
     )
     .limit(1);
