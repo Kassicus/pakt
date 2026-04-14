@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { ClerkProvider } from "@clerk/nextjs";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { SwRegister } from "@/components/app/SwRegister";
@@ -44,14 +45,16 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col bg-background text-foreground">
-        <ThemeProvider>
-          <TooltipProvider delay={200}>
-            {children}
-            <InstallPrompt />
-            <Toaster richColors closeButton />
-          </TooltipProvider>
-          <SwRegister />
-        </ThemeProvider>
+        <ClerkProvider>
+          <ThemeProvider>
+            <TooltipProvider delay={200}>
+              {children}
+              <InstallPrompt />
+              <Toaster richColors closeButton />
+            </TooltipProvider>
+            <SwRegister />
+          </ThemeProvider>
+        </ClerkProvider>
       </body>
     </html>
   );

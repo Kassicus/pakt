@@ -14,7 +14,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { authClient } from "@/lib/auth/client";
+import { useClerk } from "@/lib/auth/client";
 import { ThemeToggleMenuItem } from "./ThemeToggle";
 
 export function UserMenu({
@@ -27,6 +27,7 @@ export function UserMenu({
   image: string | null;
 }) {
   const router = useRouter();
+  const { signOut } = useClerk();
   const [isPending, startTransition] = useTransition();
 
   const displayName = name ?? email.split("@")[0];
@@ -39,8 +40,7 @@ export function UserMenu({
   function onSignOut() {
     startTransition(async () => {
       try {
-        await authClient.signOut();
-        router.push("/");
+        await signOut({ redirectUrl: "/" });
         router.refresh();
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "Sign-out failed");

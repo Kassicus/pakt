@@ -1,28 +1,28 @@
-import { NextResponse, type NextRequest } from "next/server";
-import { auth } from "@/lib/auth/server";
+import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 
-const neonMiddleware = auth.middleware({ loginUrl: "/auth/sign-in" });
+const isProtectedRoute = createRouteMatcher([
+  "/moves(.*)",
+  "/:moveId/dashboard(.*)",
+  "/:moveId/inventory(.*)",
+  "/:moveId/triage(.*)",
+  "/:moveId/decide(.*)",
+  "/:moveId/boxes(.*)",
+  "/:moveId/pack(.*)",
+  "/:moveId/unpack(.*)",
+  "/:moveId/labels(.*)",
+]);
 
-export default function proxy(request: NextRequest) {
-  // Skip auth middleware for Server Action POSTs — they authenticate themselves
-  // inside the action and middleware redirects break the RSC response protocol.
-  if (request.headers.get("next-action")) {
-    return NextResponse.next();
+export default clerkMiddleware(async (auth, request) => {
+  if (isProtectedRoute(request)) {
+    await auth.protect();
   }
-  return neonMiddleware(request);
-}
+});
 
 export const config = {
   matcher: [
-    "/moves",
-    "/moves/:path*",
-    "/:moveId/dashboard/:path*",
-    "/:moveId/inventory/:path*",
-    "/:moveId/triage/:path*",
-    "/:moveId/decide/:path*",
-    "/:moveId/boxes/:path*",
-    "/:moveId/pack/:path*",
-    "/:moveId/unpack/:path*",
-    "/:moveId/labels/:path*",
+    // Run on every route except Next.js internals and static assets,
+    // so `auth()` is always available in pages and server actions.
+    "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
+    "/(api|trpc)(.*)",
   ],
 };
