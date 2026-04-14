@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { and, asc, eq, isNull } from "drizzle-orm";
-import { requireUserId } from "@/lib/auth";
+import { requireMoveAccess } from "@/lib/auth/membership";
 import { getDb } from "@/db";
 import {
   boxItems,
@@ -43,7 +43,7 @@ async function handleGet(req: Request) {
     return NextResponse.json({ error: "missing move id" }, { status: 400 });
   }
 
-  const userId = await requireUserId();
+  await requireMoveAccess(moveId, "helper");
   const db = getDb();
 
   const [move] = await db
@@ -55,7 +55,7 @@ async function handleGet(req: Request) {
       destinationAddress: moves.destinationAddress,
     })
     .from(moves)
-    .where(and(eq(moves.id, moveId), eq(moves.ownerUserId, userId)))
+    .where(eq(moves.id, moveId))
     .limit(1);
 
   if (!move) {

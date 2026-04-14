@@ -3,9 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { and, eq, inArray } from "drizzle-orm";
-import { requireUserId } from "@/lib/auth";
+import { requireMoveAccess } from "@/lib/auth/membership";
 import { getDb } from "@/db";
-import { boxItems, boxes, items, moves } from "@/db/schema";
+import { boxItems, boxes, items } from "@/db/schema";
 import { generateBoxShortCode, generateId } from "@/lib/shortcode";
 import {
   addItemsToBoxSchema,
@@ -15,22 +15,12 @@ import {
   updateBoxStatusSchema,
 } from "@/lib/validators";
 
-async function assertMoveOwnership(moveId: string, userId: string) {
-  const db = getDb();
-  const [row] = await db
-    .select({ id: moves.id })
-    .from(moves)
-    .where(and(eq(moves.id, moveId), eq(moves.ownerUserId, userId)))
-    .limit(1);
-  if (!row) throw new Error("Move not found");
-}
-
-async function assertBoxOwnership(boxId: string, userId: string) {
+async function boxContext(boxId: string) {
   const db = getDb();
   const [row] = await db
     .select({ moveId: boxes.moveId, shortCode: boxes.shortCode })
     .from(boxes)
-    .where(and(eq(boxes.id, boxId), eq(boxes.ownerUserId, userId)))
+    .where(eq(boxes.id, boxId))
     .limit(1);
   if (!row) throw new Error("Box not found");
   return row;
@@ -51,7 +41,6 @@ async function allocateShortCode(moveId: string): Promise<string> {
 }
 
 export async function createBox(formData: FormData): Promise<void> {
-  const userId = await requireUserId();
   const parsed = createBoxSchema.parse({
     moveId: formData.get("moveId"),
     size: formData.get("size"),
@@ -60,7 +49,7 @@ export async function createBox(formData: FormData): Promise<void> {
     fragile: formData.get("fragile") ?? undefined,
     notes: formData.get("notes") ?? "",
   });
-  await assertMoveOwnership(parsed.moveId, userId);
+  const { userId } = await requireMoveAccess(parsed.moveId, "editor");
 
   const db = getDb();
   const boxId = generateId("box");
@@ -84,22 +73,17 @@ export async function createBox(formData: FormData): Promise<void> {
 }
 
 export async function addItemsToBox(boxId: string, itemIds: string[]): Promise<void> {
-  const userId = await requireUserId();
   const parsed = addItemsToBoxSchema.parse({ boxId, itemIds });
-  const { moveId } = await assertBoxOwnership(parsed.boxId, userId);
+  const { moveId } = await boxContext(parsed.boxId);
+  await requireMoveAccess(moveId, "helper");
 
   const db = getDb();
-  const ownedItems = await db
+  // Items must belong to the same move; per-item ownership is now membership-derived.
+  const eligibleItems = await db
     .select({ id: items.id })
     .from(items)
-    .where(
-      and(
-        inArray(items.id, parsed.itemIds),
-        eq(items.moveId, moveId),
-        eq(items.ownerUserId, userId),
-      ),
-    );
-  const allowed = new Set(ownedItems.map((i) => i.id));
+    .where(and(inArray(items.id, parsed.itemIds), eq(items.moveId, moveId)));
+  const allowed = new Set(eligibleItems.map((i) => i.id));
   const toInsert = parsed.itemIds
     .filter((id) => allowed.has(id))
     .map((id) => ({ id: generateId("bi"), boxId: parsed.boxId, itemId: id, quantity: 1 }));
@@ -127,9 +111,9 @@ export async function addItemsToBox(boxId: string, itemIds: string[]): Promise<v
 }
 
 export async function removeItemFromBox(boxId: string, itemId: string): Promise<void> {
-  const userId = await requireUserId();
   const parsed = removeItemFromBoxSchema.parse({ boxId, itemId });
-  const { moveId } = await assertBoxOwnership(parsed.boxId, userId);
+  const { moveId } = await boxContext(parsed.boxId);
+  await requireMoveAccess(moveId, "helper");
 
   const db = getDb();
   await db
@@ -163,9 +147,9 @@ export async function removeItemFromBox(boxId: string, itemId: string): Promise<
 }
 
 export async function updateBoxStatus(boxId: string, status: string): Promise<void> {
-  const userId = await requireUserId();
   const parsed = updateBoxStatusSchema.parse({ boxId, status });
-  const { moveId } = await assertBoxOwnership(parsed.boxId, userId);
+  const { moveId } = await boxContext(parsed.boxId);
+  await requireMoveAccess(moveId, "helper");
 
   const db = getDb();
   await db
@@ -181,9 +165,9 @@ export async function updateBoxStatus(boxId: string, status: string): Promise<vo
 }
 
 export async function deleteBox(boxId: string): Promise<void> {
-  const userId = await requireUserId();
   const parsed = deleteBoxSchema.parse({ boxId });
-  const { moveId } = await assertBoxOwnership(parsed.boxId, userId);
+  const { moveId } = await boxContext(parsed.boxId);
+  await requireMoveAccess(moveId, "editor");
 
   const db = getDb();
   await db

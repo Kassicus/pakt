@@ -1,12 +1,8 @@
 import { NextResponse } from "next/server";
 import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
-import { and, eq } from "drizzle-orm";
-import { requireUserId } from "@/lib/auth";
-import { getDb } from "@/db";
-import { moves } from "@/db/schema";
+import { requireMoveAccess } from "@/lib/auth/membership";
 
 export async function POST(request: Request): Promise<Response> {
-  const userId = await requireUserId();
   const body = (await request.json()) as HandleUploadBody;
 
   try {
@@ -22,13 +18,7 @@ export async function POST(request: Request): Promise<Response> {
         }
         if (!moveId) throw new Error("moveId is required");
 
-        const db = getDb();
-        const [row] = await db
-          .select({ id: moves.id })
-          .from(moves)
-          .where(and(eq(moves.id, moveId), eq(moves.ownerUserId, userId)))
-          .limit(1);
-        if (!row) throw new Error("Move not found for this user");
+        const { userId } = await requireMoveAccess(moveId, "editor");
 
         return {
           allowedContentTypes: ["image/jpeg", "image/png", "image/webp"],

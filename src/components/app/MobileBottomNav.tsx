@@ -57,6 +57,7 @@ export function DesktopTopNav({ moveId }: { moveId: string }) {
     { href: `/${moveId}/boxes`, label: "Boxes" },
     { href: `/${moveId}/pack`, label: "Pack" },
     { href: `/${moveId}/labels`, label: "Labels" },
+    { href: `/${moveId}/members`, label: "Members" },
   ];
 
   return (

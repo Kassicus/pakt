@@ -2,6 +2,7 @@ import Link from "next/link";
 import { UserMenu } from "./UserMenu";
 import { DesktopTopNav } from "./MobileBottomNav";
 import { PendingChangesBadge } from "./PendingChangesBadge";
+import type { MoveRole } from "@/lib/auth/membership";
 
 type Session = {
   email: string;
@@ -12,9 +13,10 @@ type Session = {
 type Props = {
   session: Session;
   move?: { id: string; name: string };
+  role?: MoveRole;
 };
 
-export function AppHeader({ session, move }: Props) {
+export function AppHeader({ session, move, role }: Props) {
   return (
     <header className="sticky top-0 z-20 border-b bg-background/80 backdrop-blur">
       <div className="mx-auto flex h-14 w-full max-w-5xl items-center gap-3 px-4">

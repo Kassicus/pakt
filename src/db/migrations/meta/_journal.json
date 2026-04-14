@@ -15,6 +15,13 @@
       "when": 1776049313700,
       "tag": "0001_amazing_iceman",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1776118800000,
+      "tag": "0002_move_members",
+      "breakpoints": true
     }
   ]
 }

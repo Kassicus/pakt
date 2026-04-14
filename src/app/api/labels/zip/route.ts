@@ -1,6 +1,6 @@
 import JSZip from "jszip";
 import { and, eq, inArray, isNull } from "drizzle-orm";
-import { requireUserId } from "@/lib/auth";
+import { requireMoveAccess } from "@/lib/auth/membership";
 import { getDb } from "@/db";
 import { boxes, moves, rooms } from "@/db/schema";
 import {
@@ -19,11 +19,12 @@ function slugify(s: string): string {
 }
 
 export async function GET(request: Request) {
-  const userId = await requireUserId();
   const url = new URL(request.url);
   const moveId = url.searchParams.get("m");
   const idsParam = url.searchParams.get("ids");
   if (!moveId) return new Response("Missing move id", { status: 400 });
+
+  await requireMoveAccess(moveId, "helper");
 
   const ids = idsParam ? idsParam.split(",").filter(Boolean) : [];
 
@@ -32,7 +33,7 @@ export async function GET(request: Request) {
   const [move] = await db
     .select({ id: moves.id, name: moves.name })
     .from(moves)
-    .where(and(eq(moves.id, moveId), eq(moves.ownerUserId, userId)))
+    .where(eq(moves.id, moveId))
     .limit(1);
   if (!move) return new Response("Move not found", { status: 404 });
 
@@ -50,7 +51,6 @@ export async function GET(request: Request) {
     .where(
       and(
         eq(boxes.moveId, moveId),
-        eq(boxes.ownerUserId, userId),
         isNull(boxes.deletedAt),
         ...(ids.length > 0 ? [inArray(boxes.id, ids)] : []),
       ),

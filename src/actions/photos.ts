@@ -1,20 +1,20 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { del } from "@vercel/blob";
-import { requireUserId } from "@/lib/auth";
+import { requireMoveAccess } from "@/lib/auth/membership";
 import { getDb } from "@/db";
 import { itemPhotos, items } from "@/db/schema";
 import { generateId } from "@/lib/shortcode";
 import { attachPhotoSchema, deletePhotoSchema } from "@/lib/validators";
 
-async function assertItemOwnership(itemId: string, userId: string) {
+async function itemContext(itemId: string) {
   const db = getDb();
   const [row] = await db
     .select({ id: items.id, moveId: items.moveId, sourceRoomId: items.sourceRoomId })
     .from(items)
-    .where(and(eq(items.id, itemId), eq(items.ownerUserId, userId)))
+    .where(eq(items.id, itemId))
     .limit(1);
   if (!row) throw new Error("Item not found");
   return row;
@@ -29,9 +29,9 @@ export async function attachPhoto(input: {
   byteSize?: number;
   contentType?: string;
 }): Promise<{ photoId: string }> {
-  const userId = await requireUserId();
   const parsed = attachPhotoSchema.parse(input);
-  const { moveId, sourceRoomId } = await assertItemOwnership(parsed.itemId, userId);
+  const { moveId, sourceRoomId } = await itemContext(parsed.itemId);
+  await requireMoveAccess(moveId, "editor");
 
   const db = getDb();
   const photoId = generateId("ph");
@@ -53,7 +53,6 @@ export async function attachPhoto(input: {
 }
 
 export async function deletePhoto(photoId: string): Promise<void> {
-  const userId = await requireUserId();
   const parsed = deletePhotoSchema.parse({ photoId });
 
   const db = getDb();
@@ -64,16 +63,14 @@ export async function deletePhoto(photoId: string): Promise<void> {
       blobPathname: itemPhotos.blobPathname,
       moveId: items.moveId,
       sourceRoomId: items.sourceRoomId,
-      ownerUserId: items.ownerUserId,
     })
     .from(itemPhotos)
     .innerJoin(items, eq(items.id, itemPhotos.itemId))
     .where(eq(itemPhotos.id, parsed.photoId))
     .limit(1);
 
-  if (!photo || photo.ownerUserId !== userId) {
-    throw new Error("Photo not found");
-  }
+  if (!photo) throw new Error("Photo not found");
+  await requireMoveAccess(photo.moveId, "editor");
 
   await db.delete(itemPhotos).where(eq(itemPhotos.id, parsed.photoId));
 

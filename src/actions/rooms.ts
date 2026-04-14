@@ -2,43 +2,31 @@
 
 import { revalidatePath } from "next/cache";
 import { and, desc, eq } from "drizzle-orm";
-import { requireUserId } from "@/lib/auth";
+import { requireMoveAccess } from "@/lib/auth/membership";
 import { getDb } from "@/db";
-import { moves, rooms } from "@/db/schema";
+import { rooms } from "@/db/schema";
 import { generateId } from "@/lib/shortcode";
 import { addRoomSchema, renameRoomSchema, deleteRoomSchema } from "@/lib/validators";
 
-async function assertMoveOwnership(moveId: string, userId: string) {
-  const db = getDb();
-  const [row] = await db
-    .select({ id: moves.id })
-    .from(moves)
-    .where(and(eq(moves.id, moveId), eq(moves.ownerUserId, userId)))
-    .limit(1);
-  if (!row) throw new Error("Move not found");
-}
-
-async function assertRoomOwnership(roomId: string, userId: string) {
+async function moveIdForRoom(roomId: string): Promise<string> {
   const db = getDb();
   const [row] = await db
     .select({ moveId: rooms.moveId })
     .from(rooms)
-    .innerJoin(moves, eq(moves.id, rooms.moveId))
-    .where(and(eq(rooms.id, roomId), eq(moves.ownerUserId, userId)))
+    .where(eq(rooms.id, roomId))
     .limit(1);
   if (!row) throw new Error("Room not found");
   return row.moveId;
 }
 
 export async function addRoom(formData: FormData): Promise<void> {
-  const userId = await requireUserId();
   const parsed = addRoomSchema.parse({
     moveId: formData.get("moveId"),
     kind: formData.get("kind") ?? "origin",
     label: formData.get("label"),
     parentRoomId: formData.get("parentRoomId") ?? "",
   });
-  await assertMoveOwnership(parsed.moveId, userId);
+  await requireMoveAccess(parsed.moveId, "editor");
 
   const db = getDb();
 
@@ -85,12 +73,12 @@ export async function addRoom(formData: FormData): Promise<void> {
 }
 
 export async function renameRoom(formData: FormData): Promise<void> {
-  const userId = await requireUserId();
   const parsed = renameRoomSchema.parse({
     roomId: formData.get("roomId"),
     label: formData.get("label"),
   });
-  const moveId = await assertRoomOwnership(parsed.roomId, userId);
+  const moveId = await moveIdForRoom(parsed.roomId);
+  await requireMoveAccess(moveId, "editor");
 
   const db = getDb();
   await db
@@ -104,8 +92,7 @@ export async function renameRoom(formData: FormData): Promise<void> {
 export async function mirrorOriginToDestination(
   moveId: string,
 ): Promise<{ added: number; skipped: number }> {
-  const userId = await requireUserId();
-  await assertMoveOwnership(moveId, userId);
+  await requireMoveAccess(moveId, "editor");
 
   const db = getDb();
   const originRooms = await db
@@ -195,9 +182,9 @@ export async function mirrorOriginToDestination(
 }
 
 export async function deleteRoom(formData: FormData): Promise<void> {
-  const userId = await requireUserId();
   const parsed = deleteRoomSchema.parse({ roomId: formData.get("roomId") });
-  const moveId = await assertRoomOwnership(parsed.roomId, userId);
+  const moveId = await moveIdForRoom(parsed.roomId);
+  await requireMoveAccess(moveId, "editor");
 
   const db = getDb();
 

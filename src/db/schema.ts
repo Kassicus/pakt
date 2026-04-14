@@ -76,6 +76,8 @@ export const checklistCategoryEnum = pgEnum("checklist_category", [
   "after",
 ]);
 
+export const moveRoleEnum = pgEnum("move_role", ["owner", "editor", "helper"]);
+
 export const moves = pgTable(
   "moves",
   {
@@ -250,5 +252,45 @@ export const boxItems = pgTable(
   (t) => [
     unique("box_items_unique").on(t.boxId, t.itemId),
     index("box_items_item_idx").on(t.itemId),
+  ],
+);
+
+export const moveMembers = pgTable(
+  "move_members",
+  {
+    id: text("id").primaryKey(),
+    moveId: text("move_id")
+      .notNull()
+      .references(() => moves.id, { onDelete: "cascade" }),
+    userId: text("user_id").notNull(),
+    role: moveRoleEnum("role").notNull(),
+    addedAt: timestamp("added_at", { withTimezone: true }).defaultNow().notNull(),
+    addedByUserId: text("added_by_user_id"),
+  },
+  (t) => [
+    uniqueIndex("move_members_unique").on(t.moveId, t.userId),
+    index("move_members_user_idx").on(t.userId),
+  ],
+);
+
+export const moveInvitations = pgTable(
+  "move_invitations",
+  {
+    id: text("id").primaryKey(),
+    moveId: text("move_id")
+      .notNull()
+      .references(() => moves.id, { onDelete: "cascade" }),
+    email: text("email").notNull(),
+    role: moveRoleEnum("role").notNull(),
+    token: text("token").notNull(),
+    invitedByUserId: text("invited_by_user_id").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    acceptedAt: timestamp("accepted_at", { withTimezone: true }),
+    acceptedByUserId: text("accepted_by_user_id"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("move_invitations_token_unique").on(t.token),
+    index("move_invitations_move_idx").on(t.moveId),
   ],
 );

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { redirect } from "next/navigation";
 import { and, eq } from "drizzle-orm";
-import { requireUserId } from "@/lib/auth";
+import { requireMoveAccess } from "@/lib/auth/membership";
 import { getDb } from "@/db";
 import { boxes } from "@/db/schema";
 
@@ -10,9 +10,19 @@ export async function GET(
   { params }: { params: Promise<{ shortCode: string }> },
 ) {
   const { shortCode } = await params;
-  const userId = await requireUserId();
   const url = new URL(request.url);
   const moveId = url.searchParams.get("m");
+
+  // Without an explicit moveId, we can't safely scope the lookup — the same
+  // shortCode could exist in multiple moves the user is a member of.
+  if (!moveId) {
+    return new NextResponse(
+      "Missing move id — open this scan from inside a specific move.",
+      { status: 400 },
+    );
+  }
+
+  await requireMoveAccess(moveId, "helper");
 
   const db = getDb();
   const rows = await db
@@ -22,18 +32,12 @@ export async function GET(
       status: boxes.status,
     })
     .from(boxes)
-    .where(
-      and(
-        eq(boxes.shortCode, shortCode),
-        eq(boxes.ownerUserId, userId),
-        ...(moveId ? [eq(boxes.moveId, moveId)] : []),
-      ),
-    )
+    .where(and(eq(boxes.shortCode, shortCode), eq(boxes.moveId, moveId)))
     .limit(1);
 
   if (rows.length === 0) {
     return new NextResponse(
-      `No box found with code ${shortCode}${moveId ? " in this move" : ""}.`,
+      `No box found with code ${shortCode} in this move.`,
       { status: 404 },
     );
   }

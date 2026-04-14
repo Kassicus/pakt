@@ -2,10 +2,11 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { eq, and } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { requireUserId } from "@/lib/auth";
+import { requireMoveAccess } from "@/lib/auth/membership";
 import { getDb } from "@/db";
-import { moves, rooms, checklistItems } from "@/db/schema";
+import { moves, rooms, checklistItems, moveMembers } from "@/db/schema";
 import { generateId } from "@/lib/shortcode";
 import { createMoveSchema, DEFAULT_ROOMS } from "@/lib/validators";
 import { DEFAULT_CHECKLIST } from "@/lib/checklist-defaults";
@@ -33,6 +34,14 @@ export async function createMove(formData: FormData): Promise<void> {
     plannedMoveDate: parsed.data.plannedMoveDate || null,
   });
 
+  await db.insert(moveMembers).values({
+    id: generateId("mmb"),
+    moveId,
+    userId,
+    role: "owner",
+    addedByUserId: userId,
+  });
+
   const seeds = DEFAULT_ROOMS.flatMap((room, idx) =>
     room.sides.map((kind) => ({
       id: generateId("rm"),
@@ -58,10 +67,8 @@ export async function createMove(formData: FormData): Promise<void> {
 }
 
 export async function deleteMove(moveId: string) {
-  const userId = await requireUserId();
+  await requireMoveAccess(moveId, "owner");
   const db = getDb();
-  await db
-    .delete(moves)
-    .where(and(eq(moves.id, moveId), eq(moves.ownerUserId, userId)));
+  await db.delete(moves).where(eq(moves.id, moveId));
   revalidatePath("/moves");
 }
