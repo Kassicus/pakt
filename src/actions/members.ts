@@ -8,7 +8,7 @@ import { z } from "zod";
 import { getUserIdOrNull, requireUserId } from "@/lib/auth";
 import { requireMoveAccess, type MoveRole } from "@/lib/auth/membership";
 import { getDb } from "@/db";
-import { moveInvitations, moveMembers } from "@/db/schema";
+import { moveInvitations, moveMembers, moves } from "@/db/schema";
 import { generateId, generateInviteToken } from "@/lib/shortcode";
 
 const inviteSchema = z.object({
@@ -184,7 +184,6 @@ export async function getInvitationPreview(token: string): Promise<{
   state: "valid" | "expired" | "accepted" | "missing";
 } | null> {
   const db = getDb();
-  const { moves } = await import("@/db/schema");
   const [row] = await db
     .select({
       moveId: moveInvitations.moveId,

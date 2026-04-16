@@ -43,3 +43,23 @@ next-env.d.ts
 # claude code local settings
 .claude/settings.local.json
 .env*.local
+
+# capacitor — keep ios/ and android/ source, ignore build artifacts and pods
+ios/App/Pods/
+ios/App/Podfile.lock
+ios/App/build/
+ios/DerivedData/
+ios/App/output/
+android/.gradle/
+android/build/
+android/app/build/
+android/app/release/
+android/local.properties
+android/captures/
+android/.idea/
+android/*.iml
+android/app/*.iml
+# Firebase config files contain client API keys that are safe in the repo,
+# but the Admin SDK service-account JSON must NOT be committed. We pass it
+# via env vars (FIREBASE_PROJECT_ID/CLIENT_EMAIL/PRIVATE_KEY) instead.
+firebase-service-account.json

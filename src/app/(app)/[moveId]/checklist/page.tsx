@@ -1,9 +1,10 @@
-import { and, asc, eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { ListChecks } from "lucide-react";
-import { requireUserId } from "@/lib/auth";
+import { requireMoveAccess } from "@/lib/auth/membership";
 import { getDb } from "@/db";
 import { checklistItems, moves } from "@/db/schema";
 import { ChecklistView } from "@/components/app/ChecklistView";
+import { ChecklistNudgeScheduler } from "@/components/app/ChecklistNudgeScheduler";
 import type { ChecklistCategory } from "@/lib/checklist-defaults";
 
 export default async function ChecklistPage({
@@ -12,13 +13,13 @@ export default async function ChecklistPage({
   params: Promise<{ moveId: string }>;
 }) {
   const { moveId } = await params;
-  const userId = await requireUserId();
+  await requireMoveAccess(moveId);
   const db = getDb();
 
   const [move] = await db
-    .select({ id: moves.id })
+    .select({ id: moves.id, name: moves.name })
     .from(moves)
-    .where(and(eq(moves.id, moveId), eq(moves.ownerUserId, userId)))
+    .where(eq(moves.id, moveId))
     .limit(1);
 
   if (!move) return null;
@@ -37,6 +38,7 @@ export default async function ChecklistPage({
 
   const total = rows.length;
   const done = rows.filter((r) => r.doneAt !== null).length;
+  const pending = total - done;
 
   return (
     <div className="space-y-6">
@@ -63,6 +65,8 @@ export default async function ChecklistPage({
           done: r.doneAt !== null,
         }))}
       />
+
+      <ChecklistNudgeScheduler moveName={move.name} pendingCount={pending} />
     </div>
   );
 }

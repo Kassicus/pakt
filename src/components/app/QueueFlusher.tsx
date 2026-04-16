@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { Capacitor } from "@capacitor/core";
 import { toast } from "sonner";
 import { flushOutbox } from "@/lib/offline";
 
@@ -10,6 +11,7 @@ export function QueueFlusher() {
 
   useEffect(() => {
     let cancelled = false;
+    let resumeListener: { remove: () => void } | null = null;
 
     async function tryFlush() {
       if (typeof navigator !== "undefined" && !navigator.onLine) return;
@@ -39,10 +41,28 @@ export function QueueFlusher() {
 
     window.addEventListener("online", onOnline);
     document.addEventListener("visibilitychange", onVisible);
+
+    // On native, the visibility/online events don't fire reliably when the
+    // app is backgrounded for long stretches. Hook into Capacitor's resume
+    // event so the outbox flushes the moment the user returns.
+    if (Capacitor.isNativePlatform()) {
+      (async () => {
+        try {
+          const { App } = await import("@capacitor/app");
+          resumeListener = await App.addListener("resume", () => {
+            void tryFlush();
+          });
+        } catch (err) {
+          console.error("[outbox] resume listener init failed", err);
+        }
+      })();
+    }
+
     return () => {
       cancelled = true;
       window.removeEventListener("online", onOnline);
       document.removeEventListener("visibilitychange", onVisible);
+      resumeListener?.remove();
     };
   }, [router]);
 

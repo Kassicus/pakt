@@ -294,3 +294,4 @@ export const moveInvitations = pgTable(
     index("move_invitations_move_idx").on(t.moveId),
   ],
 );
+

@@ -14,7 +14,16 @@ const STANDARD_ALPHABET =
 const idBody = customAlphabet(STANDARD_ALPHABET, 10);
 
 export function generateId(
-  prefix: "mov" | "rm" | "itm" | "ph" | "box" | "bi" | "chk" | "mmb" | "inv",
+  prefix:
+    | "mov"
+    | "rm"
+    | "itm"
+    | "ph"
+    | "box"
+    | "bi"
+    | "chk"
+    | "mmb"
+    | "inv",
 ): string {
   return `${prefix}_${idBody()}`;
 }

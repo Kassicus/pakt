@@ -1,10 +1,14 @@
 "use client";
 
 import { useEffect } from "react";
+import { Capacitor } from "@capacitor/core";
 
 export function SwRegister() {
   useEffect(() => {
     if (typeof window === "undefined") return;
+    // In a Capacitor native shell, the OS handles caching/lifecycle. SW is
+    // unnecessary and on iOS WKWebView is often broken — skip it entirely.
+    if (Capacitor.isNativePlatform()) return;
     if (!("serviceWorker" in navigator)) return;
     if (process.env.NODE_ENV !== "production") return;
 

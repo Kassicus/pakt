@@ -3,11 +3,14 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { BrowserMultiFormatReader } from "@zxing/browser";
+import { Capacitor } from "@capacitor/core";
 import { Camera, CameraOff, Loader2, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 type Mode = "idle" | "starting" | "scanning" | "error";
+
+const isNative = () => Capacitor.isNativePlatform();
 
 export function QrScanner({ moveId }: { moveId: string }) {
   const router = useRouter();
@@ -29,6 +32,43 @@ export function QrScanner({ moveId }: { moveId: string }) {
     handledRef.current = false;
     setMode("starting");
     setErrorMsg(null);
+
+    if (isNative()) {
+      try {
+        const { BarcodeScanner } = await import(
+          "@capacitor-mlkit/barcode-scanning"
+        );
+        const perm = await BarcodeScanner.requestPermissions();
+        if (perm.camera !== "granted" && perm.camera !== "limited") {
+          throw new Error("Camera permission denied.");
+        }
+        // Native scanner takes over the screen with its own UI; resolves with
+        // the first decoded barcode (or empty array if user dismisses).
+        const { barcodes } = await BarcodeScanner.scan();
+        const first = barcodes[0];
+        if (!first) {
+          setMode("idle");
+          return;
+        }
+        handledRef.current = true;
+        const text = first.rawValue ?? first.displayValue ?? "";
+        const code = extractShortCode(text);
+        if (code) {
+          router.push(`/s/${encodeURIComponent(code)}?m=${encodeURIComponent(moveId)}`);
+        } else if (text) {
+          router.push(text);
+        } else {
+          setMode("idle");
+        }
+      } catch (e) {
+        setMode("error");
+        setErrorMsg(
+          e instanceof Error ? e.message : "Couldn't start the scanner.",
+        );
+      }
+      return;
+    }
+
     try {
       const reader = new BrowserMultiFormatReader();
       const controls = await reader.decodeFromVideoDevice(

@@ -1,4 +1,5 @@
 import { requireUserId } from "@/lib/auth";
+import { DeepLinkRouter } from "@/components/app/DeepLinkRouter";
 
 export default async function AppLayout({
   children,
@@ -6,5 +7,10 @@ export default async function AppLayout({
   children: React.ReactNode;
 }) {
   await requireUserId();
-  return <>{children}</>;
+  return (
+    <>
+      {children}
+      <DeepLinkRouter />
+    </>
+  );
 }
