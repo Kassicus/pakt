@@ -7,7 +7,7 @@ import {
   QrCode,
   Truck as TruckIcon,
 } from "lucide-react";
-import { requireUserId } from "@/lib/auth";
+import { requireMoveAccess } from "@/lib/auth/membership";
 import { getDb } from "@/db";
 import { moves, items, boxes, rooms, itemCategories } from "@/db/schema";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -36,13 +36,13 @@ export default async function DashboardPage({
   params: Promise<{ moveId: string }>;
 }) {
   const { moveId } = await params;
-  const userId = await requireUserId();
+  await requireMoveAccess(moveId);
   const db = getDb();
 
   const [move] = await db
     .select()
     .from(moves)
-    .where(and(eq(moves.id, moveId), eq(moves.ownerUserId, userId)))
+    .where(eq(moves.id, moveId))
     .limit(1);
 
   if (!move) return null;

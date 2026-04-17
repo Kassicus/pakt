@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { and, asc, desc, eq, isNull, notInArray } from "drizzle-orm";
 import { ChevronLeft, Download, QrCode } from "lucide-react";
-import { requireUserId } from "@/lib/auth";
+import { requireMoveAccess } from "@/lib/auth/membership";
 import { getDb } from "@/db";
 import {
   boxItems,
@@ -30,7 +30,7 @@ export default async function BoxDetailPage({
   params: Promise<{ moveId: string; boxId: string }>;
 }) {
   const { moveId, boxId } = await params;
-  const userId = await requireUserId();
+  await requireMoveAccess(moveId);
   const db = getDb();
 
   const [box] = await db
@@ -50,7 +50,6 @@ export default async function BoxDetailPage({
       and(
         eq(boxes.id, boxId),
         eq(boxes.moveId, moveId),
-        eq(boxes.ownerUserId, userId),
         isNull(boxes.deletedAt),
       ),
     )

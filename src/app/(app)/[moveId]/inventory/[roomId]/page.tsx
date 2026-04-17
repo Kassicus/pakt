@@ -2,9 +2,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { and, asc, desc, eq, inArray, isNull } from "drizzle-orm";
 import { ChevronLeft, MapPin } from "lucide-react";
-import { requireUserId } from "@/lib/auth";
+import { requireMoveAccess } from "@/lib/auth/membership";
 import { getDb } from "@/db";
-import { itemCategories, itemPhotos, items, moves, rooms } from "@/db/schema";
+import { itemCategories, itemPhotos, items, rooms } from "@/db/schema";
 import { AddItemForm, type CategoryOption } from "@/components/app/AddItemForm";
 import { DispositionChips } from "@/components/app/DispositionChips";
 import { DeleteItemButton } from "@/components/app/DeleteItemButton";
@@ -18,7 +18,7 @@ export default async function RoomDetailPage({
   params: Promise<{ moveId: string; roomId: string }>;
 }) {
   const { moveId, roomId } = await params;
-  const userId = await requireUserId();
+  await requireMoveAccess(moveId);
   const db = getDb();
 
   const [room] = await db
@@ -30,14 +30,7 @@ export default async function RoomDetailPage({
       moveId: rooms.moveId,
     })
     .from(rooms)
-    .innerJoin(moves, eq(moves.id, rooms.moveId))
-    .where(
-      and(
-        eq(rooms.id, roomId),
-        eq(rooms.moveId, moveId),
-        eq(moves.ownerUserId, userId),
-      ),
-    )
+    .where(and(eq(rooms.id, roomId), eq(rooms.moveId, moveId)))
     .limit(1);
 
   if (!room) notFound();

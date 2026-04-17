@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { and, desc, eq, isNull } from "drizzle-orm";
 import { ChevronLeft, PackageOpen } from "lucide-react";
-import { requireUserId } from "@/lib/auth";
+import { requireMoveAccess } from "@/lib/auth/membership";
 import { getDb } from "@/db";
 import { boxItems, boxTypes, boxes, itemCategories, items, rooms } from "@/db/schema";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,7 +18,7 @@ export default async function UnpackBoxPage({
   params: Promise<{ moveId: string; boxId: string }>;
 }) {
   const { moveId, boxId } = await params;
-  const userId = await requireUserId();
+  await requireMoveAccess(moveId);
   const db = getDb();
 
   const [box] = await db
@@ -36,7 +36,6 @@ export default async function UnpackBoxPage({
       and(
         eq(boxes.id, boxId),
         eq(boxes.moveId, moveId),
-        eq(boxes.ownerUserId, userId),
         isNull(boxes.deletedAt),
       ),
     )

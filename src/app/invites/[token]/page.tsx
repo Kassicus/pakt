@@ -3,8 +3,7 @@ import { clerkClient } from "@clerk/nextjs/server";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { getUserIdOrNull } from "@/lib/auth";
-import { getInvitationPreview } from "@/actions/members";
-import { AcceptInviteButton } from "@/components/app/AcceptInviteButton";
+import { acceptInvitation, getInvitationPreview } from "@/actions/members";
 
 export const dynamic = "force-dynamic";
 
@@ -33,6 +32,15 @@ export default async function AcceptInvitePage({
     return <ErrorState title="Already accepted" body="This invitation has already been used." />;
   }
 
+  // If the recipient is already authenticated (e.g. just finished sign-up via
+  // ?next=/invites/{token}), accept the invitation automatically and redirect
+  // them straight to the move dashboard. Without this they'd see the Accept
+  // button and have to click it a second time.
+  if (userId) {
+    await acceptInvitation(token);
+    return null;
+  }
+
   let inviterName = "Someone";
   try {
     const client = await clerkClient();
@@ -56,29 +64,23 @@ export default async function AcceptInvitePage({
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          {userId ? (
-            <AcceptInviteButton token={token} />
-          ) : (
-            <div className="space-y-2">
-              <p className="text-sm text-muted-foreground">
-                Sign in or create an account to accept.
-              </p>
-              <div className="grid gap-2">
-                <Link
-                  href={`/auth/sign-in?next=/invites/${token}`}
-                  className={buttonVariants()}
-                >
-                  Sign in
-                </Link>
-                <Link
-                  href={`/auth/sign-up?next=/invites/${token}`}
-                  className={buttonVariants({ variant: "secondary" })}
-                >
-                  Create account
-                </Link>
-              </div>
-            </div>
-          )}
+          <p className="text-sm text-muted-foreground">
+            Sign in or create an account to accept.
+          </p>
+          <div className="grid gap-2">
+            <Link
+              href={`/auth/sign-in?next=/invites/${token}`}
+              className={buttonVariants()}
+            >
+              Sign in
+            </Link>
+            <Link
+              href={`/auth/sign-up?next=/invites/${token}`}
+              className={buttonVariants({ variant: "secondary" })}
+            >
+              Create account
+            </Link>
+          </div>
         </CardContent>
       </Card>
     </div>

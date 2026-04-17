@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { and, asc, eq, isNull } from "drizzle-orm";
 import { ChevronLeft } from "lucide-react";
-import { requireUserId } from "@/lib/auth";
+import { requireMoveAccess } from "@/lib/auth/membership";
 import { getDb } from "@/db";
 import { itemCategories, itemPhotos, items } from "@/db/schema";
 import { DecisionQuiz } from "@/components/app/DecisionQuiz";
@@ -16,7 +16,7 @@ export default async function DecidePage({
   params: Promise<{ moveId: string; itemId: string }>;
 }) {
   const { moveId, itemId } = await params;
-  const userId = await requireUserId();
+  await requireMoveAccess(moveId);
   const db = getDb();
 
   const [item] = await db
@@ -33,7 +33,6 @@ export default async function DecidePage({
       and(
         eq(items.id, itemId),
         eq(items.moveId, moveId),
-        eq(items.ownerUserId, userId),
         isNull(items.deletedAt),
       ),
     )

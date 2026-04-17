@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { and, asc, eq, isNull } from "drizzle-orm";
 import { pickerRoomsFor } from "@/lib/rooms";
 import { ChevronLeft } from "lucide-react";
-import { requireUserId } from "@/lib/auth";
+import { requireMoveAccess } from "@/lib/auth/membership";
 import { getDb } from "@/db";
 import { boxTypes, moves, rooms } from "@/db/schema";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,13 +16,13 @@ export default async function NewBoxPage({
   params: Promise<{ moveId: string }>;
 }) {
   const { moveId } = await params;
-  const userId = await requireUserId();
+  await requireMoveAccess(moveId, "editor");
   const db = getDb();
 
   const [move] = await db
     .select({ id: moves.id })
     .from(moves)
-    .where(and(eq(moves.id, moveId), eq(moves.ownerUserId, userId)))
+    .where(eq(moves.id, moveId))
     .limit(1);
   if (!move) notFound();
 

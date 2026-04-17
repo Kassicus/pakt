@@ -2,7 +2,7 @@ import Link from "next/link";
 import { and, asc, desc, eq, ilike, inArray, isNull, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { Box as BoxIcon, Package, PackageOpen, Search as SearchIcon } from "lucide-react";
-import { requireUserId } from "@/lib/auth";
+import { requireMoveAccess } from "@/lib/auth/membership";
 import { getDb } from "@/db";
 import {
   boxItems,
@@ -31,7 +31,7 @@ export default async function SearchPage({
   const { q: rawQ } = await searchParams;
   const q = (rawQ ?? "").trim();
 
-  const userId = await requireUserId();
+  await requireMoveAccess(moveId);
 
   return (
     <div className="space-y-6">
@@ -47,7 +47,7 @@ export default async function SearchPage({
       {q.length === 0 ? (
         <EmptyHint />
       ) : (
-        <SearchResults moveId={moveId} userId={userId} query={q} />
+        <SearchResults moveId={moveId} query={q} />
       )}
     </div>
   );
@@ -64,11 +64,9 @@ function EmptyHint() {
 
 async function SearchResults({
   moveId,
-  userId,
   query,
 }: {
   moveId: string;
-  userId: string;
   query: string;
 }) {
   const db = getDb();
@@ -98,7 +96,6 @@ async function SearchResults({
     .where(
       and(
         eq(items.moveId, moveId),
-        eq(items.ownerUserId, userId),
         isNull(items.deletedAt),
         or(
           ilike(items.name, like),

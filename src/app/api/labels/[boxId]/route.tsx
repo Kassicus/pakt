@@ -1,5 +1,5 @@
 import { and, eq, isNull } from "drizzle-orm";
-import { requireUserId } from "@/lib/auth";
+import { requireMoveAccess } from "@/lib/auth/membership";
 import { getDb } from "@/db";
 import { boxes, rooms } from "@/db/schema";
 import {
@@ -13,7 +13,6 @@ type RouteContext = { params: Promise<{ boxId: string }> };
 
 export async function GET(_request: Request, { params }: RouteContext) {
   const { boxId } = await params;
-  const userId = await requireUserId();
 
   const db = getDb();
   const [row] = await db
@@ -26,16 +25,16 @@ export async function GET(_request: Request, { params }: RouteContext) {
       sourceRoomId: boxes.sourceRoomId,
     })
     .from(boxes)
-    .where(
-      and(
-        eq(boxes.id, boxId),
-        eq(boxes.ownerUserId, userId),
-        isNull(boxes.deletedAt),
-      ),
-    )
+    .where(and(eq(boxes.id, boxId), isNull(boxes.deletedAt)))
     .limit(1);
 
   if (!row) return new Response("Not found", { status: 404 });
+
+  try {
+    await requireMoveAccess(row.moveId);
+  } catch {
+    return new Response("Not found", { status: 404 });
+  }
 
   const roomRows = await db
     .select({

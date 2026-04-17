@@ -1,5 +1,5 @@
 import { and, asc, desc, eq, inArray, isNull } from "drizzle-orm";
-import { requireUserId } from "@/lib/auth";
+import { requireMoveAccess } from "@/lib/auth/membership";
 import { getDb } from "@/db";
 import { itemCategories, itemPhotos, items, rooms } from "@/db/schema";
 import { TriageDeck } from "@/components/app/TriageDeck";
@@ -11,7 +11,7 @@ export default async function TriagePage({
   params: Promise<{ moveId: string }>;
 }) {
   const { moveId } = await params;
-  const userId = await requireUserId();
+  await requireMoveAccess(moveId);
   const db = getDb();
 
   const rawItems = await db
@@ -31,7 +31,6 @@ export default async function TriagePage({
     .where(
       and(
         eq(items.moveId, moveId),
-        eq(items.ownerUserId, userId),
         eq(items.disposition, "undecided"),
         isNull(items.deletedAt),
       ),

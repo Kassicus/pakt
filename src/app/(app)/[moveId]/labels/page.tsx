@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { and, asc, eq, isNull } from "drizzle-orm";
 import { ChevronLeft } from "lucide-react";
-import { requireUserId } from "@/lib/auth";
+import { requireMoveAccess } from "@/lib/auth/membership";
 import { getDb } from "@/db";
 import { boxTypes, boxes, moves, rooms } from "@/db/schema";
 import { buildScanUrl, generateQrSvg } from "@/lib/qr";
@@ -21,13 +21,13 @@ export default async function LabelsPage({
 }) {
   const { moveId } = await params;
   const { selected } = await searchParams;
-  const userId = await requireUserId();
+  await requireMoveAccess(moveId);
   const db = getDb();
 
   const [move] = await db
     .select({ id: moves.id, name: moves.name })
     .from(moves)
-    .where(and(eq(moves.id, moveId), eq(moves.ownerUserId, userId)))
+    .where(eq(moves.id, moveId))
     .limit(1);
   if (!move) notFound();
 
@@ -46,13 +46,7 @@ export default async function LabelsPage({
     })
     .from(boxes)
     .leftJoin(boxTypes, eq(boxTypes.id, boxes.boxTypeId))
-    .where(
-      and(
-        eq(boxes.moveId, moveId),
-        eq(boxes.ownerUserId, userId),
-        isNull(boxes.deletedAt),
-      ),
-    )
+    .where(and(eq(boxes.moveId, moveId), isNull(boxes.deletedAt)))
     .orderBy(asc(boxes.shortCode));
 
   const roomRows = await db

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { and, desc, eq, isNull } from "drizzle-orm";
 import { Plus } from "lucide-react";
-import { requireUserId } from "@/lib/auth";
+import { requireMoveAccess } from "@/lib/auth/membership";
 import { getDb } from "@/db";
 import { boxTypes, boxes, rooms } from "@/db/schema";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,7 +16,7 @@ export default async function BoxesPage({
   params: Promise<{ moveId: string }>;
 }) {
   const { moveId } = await params;
-  const userId = await requireUserId();
+  await requireMoveAccess(moveId);
   const db = getDb();
 
   const destRooms = Object.fromEntries(
@@ -41,13 +41,7 @@ export default async function BoxesPage({
     })
     .from(boxes)
     .leftJoin(boxTypes, eq(boxTypes.id, boxes.boxTypeId))
-    .where(
-      and(
-        eq(boxes.moveId, moveId),
-        eq(boxes.ownerUserId, userId),
-        isNull(boxes.deletedAt),
-      ),
-    )
+    .where(and(eq(boxes.moveId, moveId), isNull(boxes.deletedAt)))
     .orderBy(desc(boxes.createdAt));
 
   return (

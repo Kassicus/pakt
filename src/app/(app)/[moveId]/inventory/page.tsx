@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { and, asc, count, eq, isNull } from "drizzle-orm";
 import { ChevronRight, CornerDownRight, MapPin, PackageOpen } from "lucide-react";
-import { requireUserId } from "@/lib/auth";
+import { requireMoveAccess } from "@/lib/auth/membership";
 import { getDb } from "@/db";
-import { rooms, items, moves } from "@/db/schema";
+import { rooms, items } from "@/db/schema";
 import { AddRoomForm, type ParentOption } from "@/components/app/AddRoomForm";
 import { RoomActionsMenu } from "@/components/app/RoomActionsMenu";
 import { MirrorRoomsButton } from "@/components/app/MirrorRoomsButton";
@@ -23,15 +23,8 @@ export default async function InventoryOverviewPage({
   const { side: rawSide } = await searchParams;
   const side: Side = rawSide === "destination" ? "destination" : "origin";
 
-  const userId = await requireUserId();
+  await requireMoveAccess(moveId);
   const db = getDb();
-
-  const [ownMove] = await db
-    .select({ id: moves.id })
-    .from(moves)
-    .where(and(eq(moves.id, moveId), eq(moves.ownerUserId, userId)))
-    .limit(1);
-  if (!ownMove) return null;
 
   const roomsForSide = await db
     .select({

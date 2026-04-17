@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { and, asc, eq, isNull, sql } from "drizzle-orm";
 import { ChevronLeft } from "lucide-react";
-import { requireUserId } from "@/lib/auth";
+import { requireMoveAccess } from "@/lib/auth/membership";
 import { getDb } from "@/db";
 import { boxTypes, boxes, moves } from "@/db/schema";
 import {
@@ -21,13 +21,13 @@ export default async function BoxTypesPage({
   params: Promise<{ moveId: string }>;
 }) {
   const { moveId } = await params;
-  const userId = await requireUserId();
+  await requireMoveAccess(moveId, "editor");
   const db = getDb();
 
   const [move] = await db
     .select({ id: moves.id })
     .from(moves)
-    .where(and(eq(moves.id, moveId), eq(moves.ownerUserId, userId)))
+    .where(eq(moves.id, moveId))
     .limit(1);
   if (!move) notFound();
 
