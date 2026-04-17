@@ -6,14 +6,7 @@ type Seed = {
   label: string;
   volumeCuFtPerItem: string;
   weightLbsPerItem: string;
-  recommendedBoxType:
-    | "small"
-    | "medium"
-    | "large"
-    | "dish_pack"
-    | "wardrobe"
-    | "tote"
-    | "none";
+  recommendedBoxType: string;
   fragile: boolean;
   sortOrder: number;
 };

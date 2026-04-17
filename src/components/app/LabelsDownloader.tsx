@@ -6,25 +6,17 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Badge } from "@/components/ui/badge";
+import { BoxTagBadges, knownTags } from "@/components/app/BoxTagBadges";
+import { BOX_TAG_LABELS } from "@/lib/validators";
 
 export type LabelPreview = {
   id: string;
   shortCode: string;
-  size: string;
-  fragile: boolean;
+  typeLabel: string | null;
+  tags: string[];
   destinationRoomLabel: string | null;
   sourceRoomLabel: string | null;
   qrSvg: string;
-};
-
-const SIZE_LABEL: Record<string, string> = {
-  small: "Small",
-  medium: "Medium",
-  large: "Large",
-  dish_pack: "Dish pack",
-  wardrobe: "Wardrobe",
-  tote: "Tote",
 };
 
 function triggerBlobDownload(blob: Blob, name: string) {
@@ -231,7 +223,7 @@ export function LabelsDownloader({
                       {label.shortCode}
                     </div>
                     <div className="mt-0.5 text-[7px] uppercase tracking-wider text-black/60">
-                      {SIZE_LABEL[label.size] ?? label.size}
+                      {label.typeLabel ?? "—"}
                     </div>
                     {label.destinationRoomLabel && (
                       <div className="mt-1 text-[9px] font-semibold leading-tight">
@@ -239,9 +231,11 @@ export function LabelsDownloader({
                       </div>
                     )}
                   </div>
-                  {label.fragile && (
+                  {knownTags(label.tags).length > 0 && (
                     <div className="self-start bg-black px-1 text-[6px] font-black tracking-widest text-white">
-                      FRAGILE
+                      {knownTags(label.tags)
+                        .map((t) => BOX_TAG_LABELS[t].toUpperCase())
+                        .join(" · ")}
                     </div>
                   )}
                 </div>
@@ -252,14 +246,10 @@ export function LabelsDownloader({
                     <span className="font-mono text-lg font-semibold tabular-nums">
                       {label.shortCode}
                     </span>
-                    {label.fragile && (
-                      <Badge variant="outline" className="border-destructive/40 text-destructive">
-                        Fragile
-                      </Badge>
-                    )}
+                    <BoxTagBadges tags={label.tags} />
                   </div>
                   <div className="text-xs text-muted-foreground">
-                    {SIZE_LABEL[label.size] ?? label.size}
+                    {label.typeLabel ?? "—"}
                     {label.destinationRoomLabel && ` · → ${label.destinationRoomLabel}`}
                   </div>
                 </div>

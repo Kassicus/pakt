@@ -121,17 +121,6 @@ export const updateItemSchema = z.object({
 });
 export type UpdateItemInput = z.infer<typeof updateItemSchema>;
 
-export const boxSizes = [
-  "small",
-  "medium",
-  "large",
-  "dish_pack",
-  "wardrobe",
-  "tote",
-] as const;
-export const boxSizeSchema = z.enum(boxSizes);
-export type BoxSize = z.infer<typeof boxSizeSchema>;
-
 export const boxStatuses = [
   "empty",
   "packing",
@@ -144,18 +133,69 @@ export const boxStatuses = [
 export const boxStatusSchema = z.enum(boxStatuses);
 export type BoxStatus = z.infer<typeof boxStatusSchema>;
 
+export const boxTags = ["fragile", "perishable", "live_animal"] as const;
+export const boxTagSchema = z.enum(boxTags);
+export type BoxTag = z.infer<typeof boxTagSchema>;
+
+export const BOX_TAG_LABELS: Record<BoxTag, string> = {
+  fragile: "Fragile",
+  perishable: "Perishable",
+  live_animal: "Live animal",
+};
+
+const boxTagsFromFormData = z.preprocess((raw) => {
+  if (raw == null) return [];
+  const arr = Array.isArray(raw) ? raw : [raw];
+  return arr.filter((v): v is string => typeof v === "string" && v.length > 0);
+}, z.array(boxTagSchema).default([]));
+
+export type DefaultBoxType = {
+  key: string;
+  label: string;
+  volumeCuFt: number;
+  sortOrder: number;
+};
+
+export const DEFAULT_BOX_TYPES: DefaultBoxType[] = [
+  { key: "small", label: "Small (1.5 cuft)", volumeCuFt: 1.5, sortOrder: 10 },
+  { key: "medium", label: "Medium (3.0 cuft)", volumeCuFt: 3.0, sortOrder: 20 },
+  { key: "large", label: "Large (4.5 cuft)", volumeCuFt: 4.5, sortOrder: 30 },
+  { key: "dish_pack", label: "Dish pack (5.2 cuft)", volumeCuFt: 5.2, sortOrder: 40 },
+  { key: "wardrobe", label: "Wardrobe (11 cuft)", volumeCuFt: 11, sortOrder: 50 },
+  { key: "tote", label: "Tote (2.4 cuft)", volumeCuFt: 2.4, sortOrder: 60 },
+];
+
 export const createBoxSchema = z.object({
   moveId: z.string().min(1),
-  size: boxSizeSchema,
+  boxTypeId: z.string().min(1, "Pick a box type"),
   sourceRoomId: z.string().min(1).optional().or(z.literal("")),
   destinationRoomId: z.string().min(1).optional().or(z.literal("")),
-  fragile: z
-    .union([z.literal("on"), z.literal("true"), z.literal(""), z.undefined()])
-    .transform((v) => v === "on" || v === "true")
-    .optional(),
+  tags: boxTagsFromFormData,
   notes: z.string().trim().max(500).optional().or(z.literal("")),
 });
 export type CreateBoxInput = z.infer<typeof createBoxSchema>;
+
+export const createBoxTypeSchema = z.object({
+  moveId: z.string().min(1),
+  label: z.string().trim().min(1, "Name is required").max(80),
+  volumeCuFt: z.preprocess(
+    emptyToUndefined,
+    z.coerce.number().positive().max(500).optional(),
+  ),
+});
+
+export const updateBoxTypeSchema = z.object({
+  boxTypeId: z.string().min(1),
+  label: z.string().trim().min(1).max(80),
+  volumeCuFt: z.preprocess(
+    emptyToUndefined,
+    z.coerce.number().positive().max(500).optional(),
+  ),
+});
+
+export const deleteBoxTypeSchema = z.object({
+  boxTypeId: z.string().min(1),
+});
 
 export const updateBoxStatusSchema = z.object({
   boxId: z.string().min(1),

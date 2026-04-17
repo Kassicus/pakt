@@ -3,20 +3,12 @@ import { and, desc, eq, isNull } from "drizzle-orm";
 import { Plus } from "lucide-react";
 import { requireUserId } from "@/lib/auth";
 import { getDb } from "@/db";
-import { boxes, rooms } from "@/db/schema";
+import { boxTypes, boxes, rooms } from "@/db/schema";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
 import { BoxStatusBadge } from "@/components/app/BoxStatusBadge";
+import { BoxTagBadges } from "@/components/app/BoxTagBadges";
 import type { BoxStatus } from "@/lib/validators";
-
-const SIZE_LABEL: Record<string, string> = {
-  small: "Small",
-  medium: "Medium",
-  large: "Large",
-  dish_pack: "Dish pack",
-  wardrobe: "Wardrobe",
-  tote: "Tote",
-};
 
 export default async function BoxesPage({
   params,
@@ -40,14 +32,15 @@ export default async function BoxesPage({
     .select({
       id: boxes.id,
       shortCode: boxes.shortCode,
-      size: boxes.size,
+      typeLabel: boxTypes.label,
       status: boxes.status,
-      fragile: boxes.fragile,
+      tags: boxes.tags,
       destinationRoomId: boxes.destinationRoomId,
       sourceRoomId: boxes.sourceRoomId,
       createdAt: boxes.createdAt,
     })
     .from(boxes)
+    .leftJoin(boxTypes, eq(boxTypes.id, boxes.boxTypeId))
     .where(
       and(
         eq(boxes.moveId, moveId),
@@ -98,12 +91,10 @@ export default async function BoxesPage({
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-sm font-medium">{SIZE_LABEL[box.size]}</span>
-                    {box.fragile && (
-                      <span className="rounded bg-destructive/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-destructive">
-                        Fragile
-                      </span>
-                    )}
+                    <span className="text-sm font-medium">
+                      {box.typeLabel ?? "—"}
+                    </span>
+                    <BoxTagBadges tags={box.tags} />
                   </div>
                   <div className="mt-0.5 truncate text-xs text-muted-foreground">
                     {box.destinationRoomId

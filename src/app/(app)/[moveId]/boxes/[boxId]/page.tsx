@@ -6,6 +6,7 @@ import { requireUserId } from "@/lib/auth";
 import { getDb } from "@/db";
 import {
   boxItems,
+  boxTypes,
   boxes,
   itemCategories,
   items,
@@ -13,24 +14,15 @@ import {
 } from "@/db/schema";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { BoxStatusBadge } from "@/components/app/BoxStatusBadge";
 import { BoxStatusControls } from "@/components/app/BoxStatusControls";
 import { RemoveBoxItemButton } from "@/components/app/RemoveBoxItemButton";
+import { BoxTagBadges } from "@/components/app/BoxTagBadges";
 import {
   AddItemsToBoxPanel,
   type AvailableItem,
 } from "@/components/app/AddItemsToBoxPanel";
 import type { BoxStatus } from "@/lib/validators";
-
-const SIZE_LABEL: Record<string, string> = {
-  small: "Small (1.5 cuft)",
-  medium: "Medium (3.0 cuft)",
-  large: "Large (4.5 cuft)",
-  dish_pack: "Dish pack (5.2 cuft)",
-  wardrobe: "Wardrobe (11 cuft)",
-  tote: "Tote (2.4 cuft)",
-};
 
 export default async function BoxDetailPage({
   params,
@@ -45,14 +37,15 @@ export default async function BoxDetailPage({
     .select({
       id: boxes.id,
       shortCode: boxes.shortCode,
-      size: boxes.size,
+      typeLabel: boxTypes.label,
       status: boxes.status,
-      fragile: boxes.fragile,
+      tags: boxes.tags,
       notes: boxes.notes,
       sourceRoomId: boxes.sourceRoomId,
       destinationRoomId: boxes.destinationRoomId,
     })
     .from(boxes)
+    .leftJoin(boxTypes, eq(boxTypes.id, boxes.boxTypeId))
     .where(
       and(
         eq(boxes.id, boxId),
@@ -135,14 +128,10 @@ export default async function BoxDetailPage({
             {box.shortCode}
           </h1>
           <BoxStatusBadge status={box.status as BoxStatus} />
-          {box.fragile && (
-            <Badge variant="outline" className="border-destructive/40 text-destructive">
-              Fragile
-            </Badge>
-          )}
+          <BoxTagBadges tags={box.tags} />
         </div>
         <div className="mt-1 text-sm text-muted-foreground">
-          {SIZE_LABEL[box.size]}
+          {box.typeLabel ?? "—"}
           {sourceRoomLabel && ` · from ${sourceRoomLabel}`}
           {destRoomLabel && ` · to ${destRoomLabel}`}
         </div>

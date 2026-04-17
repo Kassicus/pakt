@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { and, eq, inArray } from "drizzle-orm";
 import { requireMoveAccess } from "@/lib/auth/membership";
 import { getDb } from "@/db";
-import { boxItems, boxes, items } from "@/db/schema";
+import { boxItems, boxTypes, boxes, items } from "@/db/schema";
 import { generateBoxShortCode, generateId } from "@/lib/shortcode";
 import {
   addItemsToBoxSchema,
@@ -43,15 +43,25 @@ async function allocateShortCode(moveId: string): Promise<string> {
 export async function createBox(formData: FormData): Promise<void> {
   const parsed = createBoxSchema.parse({
     moveId: formData.get("moveId"),
-    size: formData.get("size"),
+    boxTypeId: formData.get("boxTypeId"),
     sourceRoomId: formData.get("sourceRoomId") ?? "",
     destinationRoomId: formData.get("destinationRoomId") ?? "",
-    fragile: formData.get("fragile") ?? undefined,
+    tags: formData.getAll("tags"),
     notes: formData.get("notes") ?? "",
   });
   const { userId } = await requireMoveAccess(parsed.moveId, "editor");
 
   const db = getDb();
+
+  const [boxType] = await db
+    .select({ id: boxTypes.id, moveId: boxTypes.moveId })
+    .from(boxTypes)
+    .where(eq(boxTypes.id, parsed.boxTypeId))
+    .limit(1);
+  if (!boxType || boxType.moveId !== parsed.moveId) {
+    throw new Error("Pick a box type from this move.");
+  }
+
   const boxId = generateId("box");
   const shortCode = await allocateShortCode(parsed.moveId);
 
@@ -60,10 +70,10 @@ export async function createBox(formData: FormData): Promise<void> {
     moveId: parsed.moveId,
     ownerUserId: userId,
     shortCode,
-    size: parsed.size,
+    boxTypeId: parsed.boxTypeId,
     sourceRoomId: parsed.sourceRoomId || null,
     destinationRoomId: parsed.destinationRoomId || null,
-    fragile: parsed.fragile ?? false,
+    tags: parsed.tags,
     notes: parsed.notes || null,
   });
 

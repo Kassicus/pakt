@@ -5,16 +5,27 @@ export const LABEL_WIDTH = 472;
 export const LABEL_HEIGHT = 354;
 const QR_SIZE = 290;
 const PAD = 12;
-const FRAGILE_BAR_HEIGHT = 48;
+const TAG_BAR_HEIGHT = 48;
+
+const TAG_LABELS: Record<string, string> = {
+  fragile: "FRAGILE",
+  perishable: "PERISHABLE",
+  live_animal: "LIVE ANIMAL",
+};
 
 export type LabelBox = {
   shortCode: string;
-  size: string;
   moveId: string;
-  fragile: boolean;
+  tags: string[];
   destinationRoomLabel: string | null;
   sourceRoomLabel: string | null;
 };
+
+function tagFontSize(text: string): number {
+  if (text.length <= 14) return 32;
+  if (text.length <= 22) return 26;
+  return 22;
+}
 
 function routeLine(src: string | null, dest: string | null): string | null {
   if (src && dest) return `${src} → ${dest}`;
@@ -24,9 +35,13 @@ function routeLine(src: string | null, dest: string | null): string | null {
 }
 
 function renderLabelJsx(box: LabelBox, qrDataUrl: string) {
-  const contentHeight = LABEL_HEIGHT - (box.fragile ? FRAGILE_BAR_HEIGHT : 0);
+  const hasTags = box.tags.length > 0;
+  const contentHeight = LABEL_HEIGHT - (hasTags ? TAG_BAR_HEIGHT : 0);
   const contentCenterY = contentHeight / 2;
   const qrTop = Math.max(PAD, (contentHeight - QR_SIZE) / 2);
+  const tagText = box.tags
+    .map((t) => TAG_LABELS[t] ?? t.toUpperCase())
+    .join(" · ");
 
   // Right strip: after QR, to right edge
   const stripLeft = PAD + QR_SIZE + 8; // 310
@@ -115,9 +130,9 @@ function renderLabelJsx(box: LabelBox, qrDataUrl: string) {
         </div>
       ) : null}
 
-      {/* Fragile stripe — textShadow stroke fattens the glyphs so thermal
+      {/* Tag stripe — textShadow stroke fattens the glyphs so thermal
           printers don't print splotchy thin strokes. */}
-      {box.fragile ? (
+      {hasTags ? (
         <div
           style={{
             position: "absolute",
@@ -129,15 +144,15 @@ function renderLabelJsx(box: LabelBox, qrDataUrl: string) {
             justifyContent: "center",
             background: "#000",
             color: "#fff",
-            fontSize: 32,
+            fontSize: tagFontSize(tagText),
             fontWeight: 900,
-            letterSpacing: "0.22em",
-            height: FRAGILE_BAR_HEIGHT,
+            letterSpacing: "0.18em",
+            height: TAG_BAR_HEIGHT,
             textShadow:
               "-1px 0 0 #fff, 1px 0 0 #fff, 0 -1px 0 #fff, 0 1px 0 #fff, -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 1px 1px 0 #fff",
           }}
         >
-          FRAGILE
+          {tagText}
         </div>
       ) : null}
     </div>

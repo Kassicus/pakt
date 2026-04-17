@@ -7,6 +7,7 @@ import {
   renderLabelPngBuffer,
   type LabelBox,
 } from "@/lib/labels";
+import { qualifiedRoomLabel } from "@/lib/rooms";
 
 type RouteContext = { params: Promise<{ boxId: string }> };
 
@@ -19,9 +20,8 @@ export async function GET(_request: Request, { params }: RouteContext) {
     .select({
       id: boxes.id,
       shortCode: boxes.shortCode,
-      size: boxes.size,
       moveId: boxes.moveId,
-      fragile: boxes.fragile,
+      tags: boxes.tags,
       destinationRoomId: boxes.destinationRoomId,
       sourceRoomId: boxes.sourceRoomId,
     })
@@ -38,21 +38,23 @@ export async function GET(_request: Request, { params }: RouteContext) {
   if (!row) return new Response("Not found", { status: 404 });
 
   const roomRows = await db
-    .select({ id: rooms.id, label: rooms.label })
+    .select({
+      id: rooms.id,
+      label: rooms.label,
+      parentRoomId: rooms.parentRoomId,
+    })
     .from(rooms)
     .where(eq(rooms.moveId, row.moveId));
-  const labelById = new Map(roomRows.map((r) => [r.id, r.label] as const));
 
   const box: LabelBox = {
     shortCode: row.shortCode,
-    size: row.size,
     moveId: row.moveId,
-    fragile: row.fragile,
+    tags: row.tags ?? [],
     destinationRoomLabel: row.destinationRoomId
-      ? labelById.get(row.destinationRoomId) ?? null
+      ? qualifiedRoomLabel(row.destinationRoomId, roomRows)
       : null,
     sourceRoomLabel: row.sourceRoomId
-      ? labelById.get(row.sourceRoomId) ?? null
+      ? qualifiedRoomLabel(row.sourceRoomId, roomRows)
       : null,
   };
 

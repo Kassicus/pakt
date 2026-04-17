@@ -39,25 +39,6 @@ export const fragilityEnum = pgEnum("fragility", [
   "very_fragile",
 ]);
 
-export const boxTypeEnum = pgEnum("box_type", [
-  "small",
-  "medium",
-  "large",
-  "dish_pack",
-  "wardrobe",
-  "tote",
-  "none",
-]);
-
-export const boxSizeEnum = pgEnum("box_size", [
-  "small",
-  "medium",
-  "large",
-  "dish_pack",
-  "wardrobe",
-  "tote",
-]);
-
 export const boxStatusEnum = pgEnum("box_status", [
   "empty",
   "packing",
@@ -120,12 +101,35 @@ export const itemCategories = pgTable("item_categories", {
   label: text("label").notNull(),
   volumeCuFtPerItem: numeric("volume_cu_ft_per_item", { precision: 6, scale: 3 }).notNull(),
   weightLbsPerItem: numeric("weight_lbs_per_item", { precision: 6, scale: 2 }).notNull(),
-  recommendedBoxType: boxTypeEnum("recommended_box_type").notNull(),
+  // Slug hint for the recommended box type — matches box_types.key on default
+  // rows. Not a foreign key since box_types is per-move and this table is global.
+  recommendedBoxType: text("recommended_box_type").notNull(),
   fragile: boolean("fragile").notNull().default(false),
   sortOrder: integer("sort_order").notNull().default(0),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
+
+export const boxTypes = pgTable(
+  "box_types",
+  {
+    id: text("id").primaryKey(),
+    moveId: text("move_id")
+      .notNull()
+      .references(() => moves.id, { onDelete: "cascade" }),
+    key: text("key"),
+    label: text("label").notNull(),
+    volumeCuFt: numeric("volume_cu_ft", { precision: 6, scale: 3 }),
+    sortOrder: integer("sort_order").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+  },
+  (t) => [
+    uniqueIndex("box_types_move_label_idx").on(t.moveId, t.label),
+    index("box_types_move_idx").on(t.moveId, t.sortOrder),
+  ],
+);
 
 export type DecisionAnswers = {
   lastUsedMonths?: number;
@@ -196,7 +200,9 @@ export const boxes = pgTable(
       .references(() => moves.id, { onDelete: "cascade" }),
     ownerUserId: text("owner_user_id").notNull(),
     shortCode: text("short_code").notNull(),
-    size: boxSizeEnum("size").notNull(),
+    boxTypeId: text("box_type_id")
+      .notNull()
+      .references(() => boxTypes.id, { onDelete: "restrict" }),
     sourceRoomId: text("source_room_id").references(() => rooms.id, {
       onDelete: "set null",
     }),
@@ -204,7 +210,7 @@ export const boxes = pgTable(
       onDelete: "set null",
     }),
     status: boxStatusEnum("status").notNull().default("empty"),
-    fragile: boolean("fragile").notNull().default(false),
+    tags: text("tags").array().notNull().default(sql`'{}'::text[]`),
     weightLbsActual: numeric("weight_lbs_actual", { precision: 6, scale: 2 }),
     notes: text("notes"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),

@@ -1,7 +1,6 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -13,60 +12,78 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { createBox } from "@/actions/boxes";
+import { BOX_TAG_LABELS, boxTags, type BoxTag } from "@/lib/validators";
 import { useState } from "react";
 
 export type RoomOption = { id: string; label: string };
-
-const SIZE_LABELS: Record<string, string> = {
-  small: "Small (1.5 cuft)",
-  medium: "Medium (3.0 cuft)",
-  large: "Large (4.5 cuft)",
-  dish_pack: "Dish pack (5.2 cuft)",
-  wardrobe: "Wardrobe (11 cuft)",
-  tote: "Tote (2.4 cuft)",
+export type BoxTypeOption = {
+  id: string;
+  label: string;
+  volumeCuFt: string | null;
 };
 
 export function CreateBoxForm({
   moveId,
+  boxTypes,
   originRooms,
   destinationRooms,
 }: {
   moveId: string;
+  boxTypes: BoxTypeOption[];
   originRooms: RoomOption[];
   destinationRooms: RoomOption[];
 }) {
-  const [size, setSize] = useState("medium");
+  const [boxTypeId, setBoxTypeId] = useState(boxTypes[0]?.id ?? "");
   const [sourceRoomId, setSourceRoomId] = useState("");
   const [destinationRoomId, setDestinationRoomId] = useState("");
-  const [fragile, setFragile] = useState(false);
+  const [tags, setTags] = useState<Set<BoxTag>>(new Set());
   const [notes, setNotes] = useState("");
+
+  function toggleTag(tag: BoxTag, checked: boolean) {
+    setTags((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(tag);
+      else next.delete(tag);
+      return next;
+    });
+  }
+
+  const typeItems = Object.fromEntries(boxTypes.map((t) => [t.id, t.label]));
 
   return (
     <form action={createBox} className="space-y-4">
       <input type="hidden" name="moveId" value={moveId} />
-      <input type="hidden" name="size" value={size} />
+      <input type="hidden" name="boxTypeId" value={boxTypeId} />
       <input type="hidden" name="sourceRoomId" value={sourceRoomId} />
       <input type="hidden" name="destinationRoomId" value={destinationRoomId} />
-      <input type="hidden" name="fragile" value={fragile ? "on" : ""} />
+      {Array.from(tags).map((tag) => (
+        <input key={tag} type="hidden" name="tags" value={tag} />
+      ))}
 
       <div className="space-y-2">
-        <Label>Box size</Label>
-        <Select
-          value={size}
-          onValueChange={(v) => setSize(v ?? "medium")}
-          items={SIZE_LABELS}
-        >
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {Object.entries(SIZE_LABELS).map(([v, label]) => (
-              <SelectItem key={v} value={v}>
-                {label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <Label>Box type</Label>
+        {boxTypes.length === 0 ? (
+          <p className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">
+            No box types yet. Add one on the Box types page first.
+          </p>
+        ) : (
+          <Select
+            value={boxTypeId}
+            onValueChange={(v) => setBoxTypeId(v ?? boxTypes[0]?.id ?? "")}
+            items={typeItems}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {boxTypes.map((t) => (
+                <SelectItem key={t.id} value={t.id}>
+                  {t.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
@@ -110,16 +127,23 @@ export function CreateBoxForm({
         </div>
       </div>
 
-      <div className="flex items-center gap-2">
-        <Checkbox
-          id="fragile"
-          checked={fragile}
-          onCheckedChange={(v) => setFragile(Boolean(v))}
-        />
-        <Label htmlFor="fragile" className="cursor-pointer">
-          Fragile — mark the label
-        </Label>
-      </div>
+      <fieldset className="space-y-2">
+        <legend className="text-sm font-medium">Tags</legend>
+        <p className="text-xs text-muted-foreground">
+          Printed on the label so movers know how to handle this box.
+        </p>
+        <div className="flex flex-wrap gap-4">
+          {boxTags.map((tag) => (
+            <label key={tag} className="flex cursor-pointer items-center gap-2 text-sm">
+              <Checkbox
+                checked={tags.has(tag)}
+                onCheckedChange={(v) => toggleTag(tag, Boolean(v))}
+              />
+              {BOX_TAG_LABELS[tag]}
+            </label>
+          ))}
+        </div>
+      </fieldset>
 
       <div className="space-y-2">
         <Label htmlFor="notes">Notes</Label>
@@ -135,7 +159,9 @@ export function CreateBoxForm({
       </div>
 
       <div className="flex justify-end">
-        <Button type="submit">Create box</Button>
+        <Button type="submit" disabled={boxTypes.length === 0}>
+          Create box
+        </Button>
       </div>
     </form>
   );

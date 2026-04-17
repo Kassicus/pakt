@@ -23,7 +23,8 @@ export function generateId(
     | "bi"
     | "chk"
     | "mmb"
-    | "inv",
+    | "inv"
+    | "boxtyp",
 ): string {
   return `${prefix}_${idBody()}`;
 }

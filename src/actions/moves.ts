@@ -6,9 +6,9 @@ import { eq } from "drizzle-orm";
 import { requireUserId } from "@/lib/auth";
 import { requireMoveAccess } from "@/lib/auth/membership";
 import { getDb } from "@/db";
-import { moves, rooms, checklistItems, moveMembers } from "@/db/schema";
+import { boxTypes, moves, rooms, checklistItems, moveMembers } from "@/db/schema";
 import { generateId } from "@/lib/shortcode";
-import { createMoveSchema, DEFAULT_ROOMS } from "@/lib/validators";
+import { createMoveSchema, DEFAULT_ROOMS, DEFAULT_BOX_TYPES } from "@/lib/validators";
 import { DEFAULT_CHECKLIST } from "@/lib/checklist-defaults";
 
 export async function createMove(formData: FormData): Promise<void> {
@@ -61,6 +61,16 @@ export async function createMove(formData: FormData): Promise<void> {
     sortOrder: idx * 10,
   }));
   await db.insert(checklistItems).values(checklistSeeds);
+
+  const boxTypeSeeds = DEFAULT_BOX_TYPES.map((t) => ({
+    id: `boxtyp_${moveId}_${t.key}`,
+    moveId,
+    key: t.key,
+    label: t.label,
+    volumeCuFt: t.volumeCuFt.toString(),
+    sortOrder: t.sortOrder,
+  }));
+  await db.insert(boxTypes).values(boxTypeSeeds);
 
   revalidatePath("/moves");
   redirect(`/${moveId}/dashboard`);

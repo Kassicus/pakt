@@ -10,6 +10,18 @@ export type RoomPickerOption = {
   label: string;
 };
 
+export function qualifiedRoomLabel(
+  roomId: string,
+  rows: Pick<RoomRow, "id" | "label" | "parentRoomId">[],
+  separator = " ",
+): string | null {
+  const byId = new Map(rows.map((r) => [r.id, r] as const));
+  const target = byId.get(roomId);
+  if (!target) return null;
+  const parent = target.parentRoomId ? byId.get(target.parentRoomId) : null;
+  return parent ? `${parent.label}${separator}${target.label}` : target.label;
+}
+
 /**
  * Format a room list for a dropdown picker, prefixing sub-rooms with their
  * parent's name (e.g. "Primary bedroom › Walk-in closet"). Returned options

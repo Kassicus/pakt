@@ -4,22 +4,13 @@ import { and, desc, eq, isNull } from "drizzle-orm";
 import { ChevronLeft, PackageOpen } from "lucide-react";
 import { requireUserId } from "@/lib/auth";
 import { getDb } from "@/db";
-import { boxItems, boxes, itemCategories, items, rooms } from "@/db/schema";
+import { boxItems, boxTypes, boxes, itemCategories, items, rooms } from "@/db/schema";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { BoxStatusBadge } from "@/components/app/BoxStatusBadge";
 import { BoxStatusControls } from "@/components/app/BoxStatusControls";
+import { BoxTagBadges } from "@/components/app/BoxTagBadges";
 import { MarkItemUnpackedButton } from "@/components/app/MarkItemUnpackedButton";
 import type { BoxStatus } from "@/lib/validators";
-
-const SIZE_LABEL: Record<string, string> = {
-  small: "Small",
-  medium: "Medium",
-  large: "Large",
-  dish_pack: "Dish pack",
-  wardrobe: "Wardrobe",
-  tote: "Tote",
-};
 
 export default async function UnpackBoxPage({
   params,
@@ -34,12 +25,13 @@ export default async function UnpackBoxPage({
     .select({
       id: boxes.id,
       shortCode: boxes.shortCode,
-      size: boxes.size,
+      typeLabel: boxTypes.label,
       status: boxes.status,
-      fragile: boxes.fragile,
+      tags: boxes.tags,
       destinationRoomId: boxes.destinationRoomId,
     })
     .from(boxes)
+    .leftJoin(boxTypes, eq(boxTypes.id, boxes.boxTypeId))
     .where(
       and(
         eq(boxes.id, boxId),
@@ -86,14 +78,10 @@ export default async function UnpackBoxPage({
           <PackageOpen className="size-6 text-muted-foreground" />
           <h1 className="font-mono text-3xl font-semibold tabular-nums">{box.shortCode}</h1>
           <BoxStatusBadge status={box.status as BoxStatus} />
-          {box.fragile && (
-            <Badge variant="outline" className="border-destructive/40 text-destructive">
-              Fragile — handle with care
-            </Badge>
-          )}
+          <BoxTagBadges tags={box.tags} />
         </div>
         <div className="mt-1 text-sm text-muted-foreground">
-          {SIZE_LABEL[box.size]}
+          {box.typeLabel ?? "—"}
           {destLabel && ` → ${destLabel}`}
         </div>
       </div>

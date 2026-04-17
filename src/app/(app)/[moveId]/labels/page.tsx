@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { and, asc, eq, inArray, isNull } from "drizzle-orm";
+import { and, asc, eq, isNull } from "drizzle-orm";
 import { ChevronLeft } from "lucide-react";
 import { requireUserId } from "@/lib/auth";
 import { getDb } from "@/db";
-import { boxes, moves, rooms } from "@/db/schema";
+import { boxTypes, boxes, moves, rooms } from "@/db/schema";
 import { buildScanUrl, generateQrSvg } from "@/lib/qr";
+import { qualifiedRoomLabel } from "@/lib/rooms";
 import {
   LabelsDownloader,
   type LabelPreview,
@@ -38,12 +39,13 @@ export default async function LabelsPage({
     .select({
       id: boxes.id,
       shortCode: boxes.shortCode,
-      size: boxes.size,
-      fragile: boxes.fragile,
+      typeLabel: boxTypes.label,
+      tags: boxes.tags,
       sourceRoomId: boxes.sourceRoomId,
       destinationRoomId: boxes.destinationRoomId,
     })
     .from(boxes)
+    .leftJoin(boxTypes, eq(boxTypes.id, boxes.boxTypeId))
     .where(
       and(
         eq(boxes.moveId, moveId),
@@ -54,10 +56,13 @@ export default async function LabelsPage({
     .orderBy(asc(boxes.shortCode));
 
   const roomRows = await db
-    .select({ id: rooms.id, label: rooms.label })
+    .select({
+      id: rooms.id,
+      label: rooms.label,
+      parentRoomId: rooms.parentRoomId,
+    })
     .from(rooms)
     .where(eq(rooms.moveId, moveId));
-  const roomLabel = new Map(roomRows.map((r) => [r.id, r.label] as const));
 
   const initialSelected = new Set(
     rows.filter((r) => preselected.has(r.id)).map((r) => r.id),
@@ -67,13 +72,13 @@ export default async function LabelsPage({
     rows.map(async (row) => ({
       id: row.id,
       shortCode: row.shortCode,
-      size: row.size,
-      fragile: row.fragile,
+      typeLabel: row.typeLabel,
+      tags: row.tags ?? [],
       sourceRoomLabel: row.sourceRoomId
-        ? roomLabel.get(row.sourceRoomId) ?? null
+        ? qualifiedRoomLabel(row.sourceRoomId, roomRows)
         : null,
       destinationRoomLabel: row.destinationRoomId
-        ? roomLabel.get(row.destinationRoomId) ?? null
+        ? qualifiedRoomLabel(row.destinationRoomId, roomRows)
         : null,
       qrSvg: await generateQrSvg(buildScanUrl(row.shortCode, moveId)),
     })),
